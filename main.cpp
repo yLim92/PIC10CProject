@@ -1,7 +1,7 @@
 /*
 Yongjie Lim
 UID: 703912832
-Week 3 Submission
+Week 4 Submission
 
 DIRECTIONS:
 -PLEASE manually expand the console height for the map.  Otherwise the output might look REALLY strange.
@@ -9,6 +9,28 @@ DIRECTIONS:
 -Game will start off with a battle; finish the battle and the game should enter exploration phase for the rest of the time.
 -Try out the floor navigation!
 -Please forgive the flickering.  I am aware console applications aren't ideal for games.
+
+WEEK 5
+Battling the linked statuses again.  Ridiculously tricky because:
+	-Statuses can have a one-to-one, one-to-many, or many-to-many relationship, some reciprocal, others one way
+	-Need to have a linked logic that is determined by the ability
+	-Statuses must be dynamically created
+	-Statuses have different targets and accuracies 
+
+WEEK 4
+I realized that linked status might be more complex than one to one; that took a bit of time to resolve for the potential many-to-many relationships
+The base classes have been set up along with their resource systems.  
+	-Soldiers use cooldowns
+	-Mages use magic points
+	-Thiefs use combo points
+I resolved the dynamic casting problem by using a getter that returns a base class ability pointer that is virtually redefined by the base classes.
+Set up the calculations for all the things that might happen in battle, like dodge, accuracy, damage reduction, perfect hits, etc
+Also, after viewing how bad the flicker makes the program look on slow computers, I might have to consider porting the project to Qt and using openGL or something
+to make things look beautiful
+
+NEXT WEEK:
+-FINISH doing the abilities for the base classes.
+-Begin creation of enemy npc classes
 
 WEEK 3
 The view took a lot longer than anticipated.
@@ -66,10 +88,9 @@ int main() {
 	return 0;
 }
 
-/* QUESTIONS
+/* 
 
--Is it bad to return a non constant pointer for error checking purposes? (want to check for nullptr)
--protected vs private
--would it be wise to template my abilities?
--How best to hook up all the output to battleview? How about saving?
+IDEAS:
+-Ability based on turn bar, status effects
+
 */

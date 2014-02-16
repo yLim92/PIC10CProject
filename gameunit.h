@@ -11,6 +11,17 @@ class RogueAbility;
 class Party;
 class Turn;
 
+namespace gameunit_misc {
+	bool sort_by_speed (const GameUnit *lhs, const GameUnit *rhs);
+	bool sort_by_hp (const GameUnit *lhs, const GameUnit *rhs);
+	bool sort_by_effective_hp (const GameUnit *lhs, const GameUnit *rhs);
+	enum class Personality {
+		intelligent,
+		bloodthirsty,
+		backliner,
+	};
+}
+
 class GameUnit {
 	friend class Party;
 public:
@@ -26,6 +37,7 @@ public:
 	virtual void assign_abilities();
 
 	const std::string get_name() const { return name; }
+	const std::string get_id_key() const { return id; }
 	const std::vector<Ability *>& get_abilities() const { return abilities; }
 	const int get_constitution() const;
 	const int get_strength() const;
@@ -36,12 +48,13 @@ public:
 	const gc::Affiliation get_affiliation() const { return affiliation; }
 	const double get_status_mod(gc::StatusType st) const;
 	const std::map<gc::StatusType, double> get_all_status_and_values() const;
-	const bool get_position()  const { return is_front; }
-	virtual const int get_hp() const;
+	const bool is_in_front() const { return is_front; }
+	virtual const int get_current_hp() const;
 	virtual const int get_temp_hp() const;
 	virtual const int get_intial_temp_hp() const;
 	virtual const int get_max_temp_hp() const;
 	virtual const int get_max_hp() const;
+	virtual const int get_current_effective_hp() const;
 	const virtual double get_turn_progress() const;
 	const int get_accuracy() const;
 	const int get_dodge() const;
@@ -51,20 +64,26 @@ public:
 	const int get_armor_ignore() const;
 	const int get_critical_chance() const;
 	const double get_critical_damage_mod() const;
-
+	const int get_threat_level() const;
 	virtual const std::string get_resource_display() const { return ""; }
+	virtual const StatusList& get_status_list() const { return status_list; }
+	//virtual StatusList& get_status_list() { return status_list; }
 
 	virtual Ability* get_ability(int i);
+	virtual void apply_targetting_logic(std::vector<GameUnit *> &poss_tgts, std::vector<GameUnit *> &tgts, int max_tgts, gc::TargetType tt) {}
 
 	int change_hp(int c); 
 	void change_damage_taken(int c) { damage_taken += c; }
 	void set_affiliation(gc::Affiliation a) { affiliation = a; }
 	void add_status(Status *stat);
+	void remove_status_of_type(gc::StatusType stat_type);
 	virtual bool is_turn();
-	void reset_increment() { turn_increment = 0; }
+	void reset_turn_progress() { turn_progress = 0; }
 	
 	virtual void update();
-	virtual bool is_defeated();
+	virtual const bool is_defeated() const;
+	virtual const bool can_take_turn() const;
+	virtual const bool is_friendly_with(GameUnit &tgt) const;
 protected:
 	// Stats
 	int level;
@@ -89,7 +108,7 @@ protected:
 	int temp_hp; 
 	gc::Affiliation affiliation;
 	bool is_front;
-	int turn_increment;
+	double turn_progress;
 	StatusList status_list;
 
 	//Abilties
@@ -97,6 +116,7 @@ protected:
 
 	//Misc
 	std::string name;
+	std::string id;
 };
 
 class Party {
@@ -122,20 +142,6 @@ public:
 
 	virtual void update();
 	virtual void update_resource();
-	//virtual int do_turn(BattlePhase *b);
-protected:
-};
-
-//Non-Player Character
-class Npc : public GameUnit {
-public:
-	Npc() {}
-	Npc(std::string n) : GameUnit(n) {}
-	Npc(int c, int s, int d, int i) : GameUnit(c, s, d, i) {}
-	Npc(std::string n, int c, int s, int d, int i) : GameUnit(n, c, s, d, i) {}
-	Npc(std::string n, int lvl) : GameUnit(n, lvl) {}
-	virtual ~Npc();
-
 	//virtual int do_turn(BattlePhase *b);
 protected:
 };
@@ -194,4 +200,21 @@ private:
 	std::vector<RogueAbility*> t_abilities;
 
 	gc::ComboPoints combo_points;
+};
+
+//Non-Player Character
+class Npc : public GameUnit {
+public:
+	Npc() {}
+	Npc(std::string n) : GameUnit(n) {}
+	Npc(int c, int s, int d, int i) : GameUnit(c, s, d, i) {}
+	Npc(std::string n, int c, int s, int d, int i) : GameUnit(n, c, s, d, i) {}
+	Npc(std::string n, int lvl);
+	virtual ~Npc();
+
+	virtual void apply_targetting_logic(std::vector<GameUnit *> &poss_tgts, std::vector<GameUnit *> &tgts, int max_tgts, gc::TargetType tt);
+	const bool has_personality(gameunit_misc::Personality p) const;
+	//virtual int do_turn(BattlePhase *b);
+protected:
+	std::vector<gameunit_misc::Personality> personalities;
 };

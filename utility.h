@@ -10,13 +10,22 @@
 #include <map>
 
 #define DEBUG_FLOOR 0
+#define DEBUG_BATTLE 0
+#define DEBUG_TARGET_LOGIC 0
+#define DEBUG_STATUS 0
 
 //Game constants
 namespace gc {
 	const int FPS = 10;
 	const int AVG_FRAMES_PER_TURN = 50;
 	const int PRACTICALLY_INFINITY = 100000;
-	const int PERFECT_HIT_THRESHOLD = 50;
+	const int PERFECT_HIT_THRESHOLD = 100;
+
+	enum class Threat {
+		low = 20,
+		mid = 40,
+		high = 60,
+	};
 	enum class RoomCode {
 		unvisited = 0,
 		incomplete,
@@ -42,6 +51,7 @@ namespace gc {
 		accuracy,
 		channelling,
 		stun,
+		grab,
 		burn,
 		bleed,
 		poison,
@@ -49,6 +59,8 @@ namespace gc {
 		regen_resource,
 		counter,
 		armor_pierce,
+		challenged,
+		threat_level,
 		undefined
 	};
 	enum class ComboPointType {
@@ -60,6 +72,15 @@ namespace gc {
 	typedef std::map<ComboPointType, int> ComboPoints;
 	bool operator<(const ComboPoints& lhs, const ComboPoints& rhs);
 	ComboPoints operator-(const ComboPoints& rhs);
+
+	enum class TargetType {
+		self,
+		single_friendly,
+		single_enemy,
+		party_friendly,
+		party_enemy,
+		all
+	};
 }
 
 

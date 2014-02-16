@@ -1,11 +1,12 @@
 #ifndef STATUS_H
 #define STATUS_H
 
-#include "utility.h" //gc::StatusType
+#include "utility.h" //gc::StatusType, gc::TargetType
 #include <map>
 
 class GameUnit;
 class Status;
+class Ability;
 
 struct AttributeList {
 	AttributeList() : is_stackable(true), effect_decay(0), effect_magnitude(0), duration(gc::PRACTICALLY_INFINITY), interval(1*gc::FPS), sustain_chance(0), sustain_chance_decay(0), type(gc::StatusType::undefined) {}
@@ -21,15 +22,28 @@ struct AttributeList {
 	gc::StatusType type;
 };
 
-struct StatusBlock {
-	StatusBlock();
-	~StatusBlock() {}
+class AttributeListGroup {
+public:
+	AttributeListGroup() {}
+	AttributeListGroup(int ma) : main_effect_accuracy(ma) {}
+	~AttributeListGroup() {}
 
-	AttributeList attr_list;
-	std::vector<AttributeList> l_attr_list;
-	bool main_self_target;
-	bool linked_self_target;
-	int effect_chance;
+	void add_attribute_list(AttributeList attr, bool self_target, int efc);
+	void set_link_logic(std::vector<std::pair<int, int> > ll) { link_logic = ll; }
+
+	const AttributeList& get_attribute_list(int i) { return attributes[i]; }
+	const bool get_target_logic(int i) const { return targeting_logic[i]; }
+	const int get_effect_chance (int i) const { return effect_chances[i]; }
+	const int get_main_effect_accuracy() const { return main_effect_accuracy; }
+	const std::vector<std::pair<int, int> >& get_link_logic() const { return link_logic; }
+
+	const int get_status_count() const { return int(attributes.size()); }
+private:
+	std::vector<AttributeList> attributes;
+	std::vector<bool> targeting_logic;
+	std::vector<int> effect_chances;
+	std::vector<std::pair<int, int> > link_logic;
+	int main_effect_accuracy;
 };
 
 class StatusList {
@@ -41,8 +55,10 @@ public:
 	const std::map<gc::StatusType, double> get_all_status_and_values() const;
 	const double get_status_mod(gc::StatusType st) const;
 	const bool is_affected_by(gc::StatusType st) const;
+	const Status* get_last_status_of_type(gc::StatusType st) const;
 	void add_status(Status *stat);
 	void remove_status(Status *stat);
+	void remove_statuses_of_type(gc::StatusType stat_type);
 	void update();
 	void empty();
 protected:
@@ -59,6 +75,8 @@ public:
 	virtual ~Status();
 
 	const gc::StatusType get_type() const { return attr_list.type; }
+	const Ability& get_creating_ability() const { return *from_ability; }
+	const GameUnit& get_source() const;
 	double mod() const;
 	//Returns 0 if the status should no longer have an effect
 	virtual int update(GameUnit* gu);

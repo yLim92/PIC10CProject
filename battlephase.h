@@ -14,7 +14,8 @@ class Turn;
 struct DelayedAbility;
 class BattleView;
 class Ability;
-struct StatusBlock;
+class StatusBlock;
+class Status;
 
 class BattlePhase {
 	friend class BattleView;
@@ -40,17 +41,18 @@ public:
 		4. Apply effect if successful (initial_effect_step: apply_initial_effect -> apply_status
 	*/
 
-	int do_ability_phase(Ability &a);
+	int do_ability_phase(GameUnit &owner, Ability &a);
 
-	bool target_step(const Ability &a, std::vector<GameUnit *> &targets);
-	void set_possible_targets(const Ability &a, std::vector<GameUnit *> &possible_tgts);
-	bool select_targets(const Ability &a, const std::vector<GameUnit *> &poss_tgts, std::vector<GameUnit *> &targets);
+	bool target_step(GameUnit &owner, const Ability &a, std::vector<GameUnit *> &targets);
+	void set_possible_targets(GameUnit &owner, const Ability &a, std::vector<GameUnit *> &possible_tgts);
+	bool select_targets(GameUnit &owner, const Ability &a, std::vector<GameUnit *> &poss_tgts, std::vector<GameUnit *> &targets);
 
 	void effect_step(Ability &a, std::vector<GameUnit *> &targets);
 	void print_health_change(GameUnit *tgt, int magn);
-	void apply_status(Ability &a, StatusBlock sb, GameUnit *tgt);
+	void post_damage_step(Ability &a, GameUnit &tgt, int magn);
 	
 	void add_delayed_ability(DelayedAbility d);
+	void remove_delayed_ability(const Ability &a);
 	void do_delayed_ability(Ability &a, std::vector<GameUnit *> &targets);
 
 	BattleView& get_battle_view() { return *bv; }

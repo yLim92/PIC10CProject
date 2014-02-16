@@ -15,13 +15,13 @@ class GameUnit;
 class Ability;
 class Status;
 struct AttributeList;
-struct StatusBlock;
+class AttributeListGroup;
 class Soldier;
 class Mage;
 class Thief;
 
 struct DelayedAbility {
-	DelayedAbility(Ability* a, int d, std::vector<GameUnit*> t) : ability(a), delay(d), targets(t) {}
+	DelayedAbility(Ability& a, int d, std::vector<GameUnit*> t) : ability(&a), delay(d), targets(t) {}
 	~DelayedAbility() {}
 
 	Ability* ability;
@@ -38,21 +38,23 @@ public:
 	virtual void set_defaults();
 
 	virtual void deduct_ability_cost() {}
+	virtual void apply_statuses(GameUnit &tgt, double mult);
+	virtual void on_successful_hit() {}
 
 	const int effect_magnitude() const;
 	virtual const double effect_spread(bool perfect) const;
 	const int critical_chance() const;
 	const double critical_damage_multiplier() const;
 	const int accuracy() const;
-	const int status_effect_chance() const;
+	//const int status_effect_chance() const;
 	const int get_delay() const { return delay; }
 	virtual const std::string get_name() const { return name; }
+	const bool is_status_successful(int base_acc, double mult, GameUnit &tgt) const;
 
 	virtual GameUnit& get_owner() { return *owner; }
 	virtual const GameUnit& get_owner() const { return *owner; }
 
-	const std::vector<StatusBlock> ability_statuses() const;
-	//virtual const AttributeList linked_status_attr() const;
+	virtual const std::vector<AttributeListGroup> status_templates() const;
 
 	virtual const std::string get_cost_display() const { return ""; } 
 
@@ -60,10 +62,12 @@ public:
 	const std::string get_delayed_description() const { return delayed_desc; }
 
 	virtual const bool is_usable() const { return true; }
-	const bool is_friendly() const { return friendly; }
+	const bool is_friendly() const;
+
 	const bool changes_health() const { return health_effect; }
 	const bool is_damaging() const { return damaging; }
 	const bool changes_status() const { return status_effect; }
+	const gc::TargetType get_target_type() const { return target_type; }
 
 protected:
 	GameUnit *owner;
@@ -89,12 +93,12 @@ protected:
 
 	//Ability Properties
 	int delay; //Delay in frames until move triggers; currently 10 frames/second
-	bool friendly;
+	//bool friendly;
 	bool health_effect;
 	bool damaging;
 	bool status_effect;
+	gc::TargetType target_type;
 
-	std::vector<StatusBlock> statuses;
 };
 
 class ChargeStrike : public Ability {
@@ -103,6 +107,7 @@ public:
 	ChargeStrike(GameUnit *g);
 	virtual ~ChargeStrike() {}
 	
+	const std::vector<AttributeListGroup> ChargeStrike::status_templates() const;
 protected:
 };
 
@@ -161,6 +166,8 @@ class MoraleBoost : public WarriorAbility {
 public:
 	MoraleBoost(Soldier *o);
 	virtual ~MoraleBoost() {}
+
+	virtual const std::vector<AttributeListGroup> status_templates() const;
 protected:
 	
 };
@@ -169,9 +176,53 @@ class Hold : public WarriorAbility {
 public:
 	Hold(Soldier *o);
 	virtual ~Hold() {}
+
+	virtual const std::vector<AttributeListGroup> status_templates() const;
 protected:
 };
 
+class Provoke: public WarriorAbility {
+public:
+	Provoke(Soldier *o);
+	virtual ~Provoke() {}
+
+	virtual const std::vector<AttributeListGroup> status_templates() const;
+};
+
+class Retaliate: public WarriorAbility {
+public:
+	Retaliate(Soldier *o);
+	virtual ~Retaliate() {}
+
+	virtual const std::vector<AttributeListGroup> status_templates() const;
+};
+class Batter: public WarriorAbility {
+public:
+	Batter(Soldier *o);
+	virtual ~Batter() {}
+
+	virtual const bool is_usable() const; 
+	virtual void decrement_cd();
+	virtual void on_successful_hit();
+	virtual const std::vector<AttributeListGroup> status_templates() const;
+private:
+	int free_usage_timer;
+};
+class Cleave: public WarriorAbility {
+public:
+	Cleave(Soldier *o);
+	virtual ~Cleave() {}
+};
+class Resolve: public WarriorAbility {
+public:
+	Resolve(Soldier *o);
+	virtual ~Resolve() {}
+};
+class Strike: public WarriorAbility {
+public:
+	Strike(Soldier *o);
+	virtual ~Strike() {}
+};
 /*
 	MAGE ABILITIES
 */
@@ -180,6 +231,8 @@ class Fireball : public MageAbility {
 public:
 	Fireball(Mage *o);
 	virtual ~Fireball() {}
+
+	virtual const std::vector<AttributeListGroup> status_templates() const;
 protected:
 };
 
@@ -188,6 +241,7 @@ public:
 	Meteor(Mage *o);
 	virtual ~Meteor() {}
 
+	virtual const std::vector<AttributeListGroup> status_templates() const;
 protected:
 };
 

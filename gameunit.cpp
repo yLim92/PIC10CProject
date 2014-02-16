@@ -4,6 +4,16 @@
 
 #include <iostream>
 
+bool gameunit_misc::sort_by_speed (const GameUnit *lhs, const GameUnit *rhs) { 
+	return lhs->get_speed() < rhs->get_speed();
+}
+bool gameunit_misc::sort_by_hp (const GameUnit *lhs, const GameUnit *rhs) { 
+	return lhs->get_current_hp() < rhs->get_current_hp();
+}
+bool gameunit_misc::sort_by_effective_hp (const GameUnit *lhs, const GameUnit *rhs) { 
+	return lhs->get_current_effective_hp() < rhs->get_current_effective_hp();
+}
+
 GameUnit::GameUnit() {
 	initialize_stats();
 
@@ -72,10 +82,14 @@ void GameUnit::initialize_stats() {
 	int_per_lvl = 1;
 	damage_taken = 0;
 	base_hp = 100;
-	is_front = false;
+	is_front = true;
 	name = "";
-	turn_increment = int(utility::normal_rng(gc::AVG_FRAMES_PER_TURN / 4.0, 4.0));
+	turn_progress = utility::normal_rng(gc::AVG_FRAMES_PER_TURN / 4.0, 4.0);
 	status_list = StatusList(this);
+	id = "";
+	for (int i = 0; i < 30; ++i) {
+		id += std::to_string(utility::rng(9));
+	}
 }
 void GameUnit::reset_defaults() {
 
@@ -97,8 +111,9 @@ const int GameUnit::get_dexterity() const {
 const int GameUnit::get_intelligence() const { 
 	return base_int + int(level * int_per_lvl); 
 }
+//Multiplier. Decimal with 1.0 as the normal value
 const int GameUnit::get_speed() const { 
-	return int(sqrt(get_dexterity())*(1. + get_status_mod(gc::StatusType::speed))); 
+	return int(1. + get_status_mod(gc::StatusType::speed) + sqrt(get_dexterity())/10. ); 
 }
 const double GameUnit::get_resource_mod() const {
 	return (1.0 + double(sqrt(get_intelligence()))/100.0)*(1. + get_status_mod(gc::StatusType::regen_resource));
@@ -112,13 +127,17 @@ const int GameUnit::get_max_temp_hp() const {
 const int GameUnit::get_max_hp() const { 
 	return base_hp + get_constitution() * 10; 
 }
+const int GameUnit::get_current_effective_hp() const {
+	return int( (get_current_hp() + get_temp_hp()) / (1.0 - get_damage_reduction()/100.));
+}
+//Gets a FLAT %.
 const int GameUnit::get_accuracy() const{
 	return int(base_accuracy + 100 * get_status_mod(gc::StatusType::accuracy) + 100 * (1 - 100./(100. + get_intelligence()) ));
 }
 const int GameUnit::get_dodge() const{
 	return int(base_dodge + 100 * get_status_mod(gc::StatusType::dodge) + 100 * (1 - 100./(100. + get_dexterity()) ));
 }
-//Gets a FLAT %. Lowest is 0.
+//Gets a FLAT %.
 const int GameUnit::get_damage_reduction() const{
 	return int(100 * get_status_mod(gc::StatusType::damage_reduction) + 100 * (1 - 100./(100. + get_constitution() + base_armor) ) );
 }
@@ -128,7 +147,7 @@ const int GameUnit::get_effect_accuracy() const {
 const int GameUnit::get_effect_resist() const{
 	return int(base_effect_resist + 100 * get_status_mod(gc::StatusType::effect_resist) + 100 * pow(1 - 100./(100. + get_constitution()), 2) );
 }
-//Gets a FLAT %. Lowest is 0.
+//Gets a FLAT %.
 const int GameUnit::get_armor_ignore() const{
 	return int(sqrt(get_strength()) + 100 * get_status_mod(gc::StatusType::armor_pierce));
 }
@@ -138,7 +157,11 @@ const int GameUnit::get_critical_chance() const{
 const double GameUnit::get_critical_damage_mod() const{
 	return 2.5 + get_status_mod(gc::StatusType::critical_damage);
 }
-const int GameUnit::get_hp() const {
+//Gets a FLAT %
+const int GameUnit::get_threat_level() const{
+	return int(100 * get_status_mod(gc::StatusType::threat_level));
+}
+const int GameUnit::get_current_hp() const {
 	int hp = get_max_hp() - damage_taken;
 	if (hp > 0)
 		return hp;
@@ -174,8 +197,8 @@ int GameUnit::change_hp(int c){
 		return c;
 }
 
-bool GameUnit::is_defeated() {
-	if (get_hp() > 0)
+const bool GameUnit::is_defeated() const{
+	if (get_current_hp() > 0)
 		return false;
 	else
 		return true;
@@ -184,6 +207,9 @@ bool GameUnit::is_defeated() {
 void GameUnit::add_status(Status *stat) {
 	status_list.add_status(stat);
 }
+void GameUnit::remove_status_of_type(gc::StatusType stat_type) {
+	status_list.remove_statuses_of_type(stat_type);
+}
 void GameUnit::update() {
 	if (is_defeated()){
 		status_list.empty();
@@ -191,8 +217,10 @@ void GameUnit::update() {
 	else {
 		status_list.update();
 
-		if (!status_list.is_affected_by(gc::StatusType::stun))
-			++turn_increment;
+		if (!status_list.is_affected_by(gc::StatusType::stun) &&
+			!status_list.is_affected_by(gc::StatusType::grab) &&
+			!status_list.is_affected_by(gc::StatusType::channelling))
+			turn_progress += 1 * get_speed();
 	}
 }
 //If the turn progress is greater than 100%
@@ -204,14 +232,36 @@ bool GameUnit::is_turn() {
 	}
 }
 const double GameUnit::get_turn_progress() const{ 
-	return double(turn_increment) / double(base_turn_cycle - get_speed()); 
+	return turn_progress / double(base_turn_cycle - get_speed()); 
 }
-
 Ability* GameUnit::get_ability(int i) { 
 	if (i >= int(abilities.size()))
 		return nullptr;
 	else
 		return abilities[i]; 
+}
+const bool GameUnit::is_friendly_with(GameUnit &tgt) const {
+	if (this->affiliation == gc::Affiliation::player || this->affiliation == gc::Affiliation::ally){
+		if (tgt.get_affiliation() == gc::Affiliation::player || tgt.get_affiliation() == gc::Affiliation::ally)
+			return true;
+	}
+	if (this->affiliation == gc::Affiliation::enemy){
+		if (tgt.get_affiliation() == gc::Affiliation::enemy)
+			return true;
+	}
+	if (this->affiliation == gc::Affiliation::neutral){
+		if (tgt.get_affiliation() == gc::Affiliation::neutral)
+			return true;
+	}
+	return false;
+}
+const bool GameUnit::can_take_turn() const {
+	if (is_defeated() || status_list.is_affected_by(gc::StatusType::stun) 
+		|| status_list.is_affected_by(gc::StatusType::channelling) 
+		|| status_list.is_affected_by(gc::StatusType::grab) )
+		return false;
+	else
+		return true;
 }
 
 Party::Party(std::vector<GameUnit*> p, gc::Affiliation a) : party_members(p), affiliation(a) {
@@ -238,9 +288,6 @@ void PlayerUnit::update_resource() {
 	return;
 }
 
-Npc::~Npc() {
-
-}
 
 Soldier::Soldier(std::string n, int lvl) : PlayerUnit(n, lvl) {
 	base_con = 10;
@@ -251,6 +298,8 @@ Soldier::Soldier(std::string n, int lvl) : PlayerUnit(n, lvl) {
 	str_per_lvl = 2;
 	dex_per_lvl = 0.5;
 	int_per_lvl = 0.5;
+
+	temp_hp = get_intial_temp_hp();
 	assign_abilities();
 }
 Ability* Soldier::get_ability(int i) { 
@@ -263,6 +312,9 @@ Ability* Soldier::get_ability(int i) {
 void Soldier::assign_abilities() {
 	w_abilities.push_back(new MoraleBoost(this));
 	w_abilities.push_back(new Hold(this));
+	w_abilities.push_back(new Provoke(this));
+	w_abilities.push_back(new Retaliate(this));
+	w_abilities.push_back(new Batter(this));
 }
 void Soldier::update_resource() {
 	for (size_t i = 0; i < w_abilities.size(); ++i){
@@ -280,9 +332,12 @@ Mage::Mage(std::string n, int lvl) : PlayerUnit(n, lvl) {
 	dex_per_lvl = 0.5;
 	int_per_lvl = 2;
 
+	is_front = false;
+
 	base_mp_regen = 5.0/gc::FPS;
 	current_mp = 0; 
-
+	
+	temp_hp = get_intial_temp_hp();
 	assign_abilities();
 }
 Ability* Mage::get_ability(int i) { 
@@ -317,7 +372,8 @@ Thief::Thief(std::string n, int lvl) : PlayerUnit(n, lvl) {
 	combo_points[gc::ComboPointType::attack] = 1;
 	combo_points[gc::ComboPointType::dodge]	= 1;
 	combo_points[gc::ComboPointType::disrupt] = 1;
-
+	
+	temp_hp = get_intial_temp_hp();
 	assign_abilities();
 }
 
@@ -358,3 +414,79 @@ const std::string Thief::get_resource_display() const {
  const gc::ComboPoints& Thief::get_combo_points() const { 
 	return combo_points;
  }
+
+Npc::Npc(std::string n, int lvl) : GameUnit(n, lvl) {
+}
+
+Npc::~Npc() {
+	
+}
+
+void Npc::apply_targetting_logic(std::vector<GameUnit *> &poss_tgts, std::vector<GameUnit *> &tgts, int max_tgts, gc::TargetType tt){
+	std::cout << int(tt) << std::endl;
+	if (tt == gc::TargetType::single_enemy){
+		std::map<std::string, int> threat_levels;
+		int sz = poss_tgts.size();
+
+		for (int i = 0; i < sz; ++i){
+			threat_levels[poss_tgts[i]->get_id_key()] = poss_tgts[i]->get_threat_level();
+		}
+		if (this->has_personality(gameunit_misc::Personality::bloodthirsty)){
+			std::sort (poss_tgts.begin(), poss_tgts.end(), gameunit_misc::sort_by_hp);
+			threat_levels[poss_tgts.front()->get_id_key()] += int(gc::Threat::high);
+		}
+		if (this->has_personality(gameunit_misc::Personality::intelligent)){
+			std::sort (poss_tgts.begin(), poss_tgts.end(), gameunit_misc::sort_by_effective_hp);
+			for (int i = 0; i < sz; ++i) {
+				threat_levels[poss_tgts[i]->get_id_key()] += max(0, int(gc::Threat::mid) - i * int(gc::Threat::low));
+				if (poss_tgts[i]->get_status_list().is_affected_by(gc::StatusType::channelling))
+					threat_levels[poss_tgts[i]->get_id_key()] += int(gc::Threat::mid);
+			}
+		}
+		for (int i = 0; i < sz; ++i) {
+			if (!poss_tgts[i]->is_in_front() ){
+				if (this->has_personality(gameunit_misc::Personality::backliner))
+					threat_levels[poss_tgts[i]->get_id_key()] += int(gc::Threat::low);
+				else
+					threat_levels[poss_tgts[i]->get_id_key()] -= int(gc::Threat::low);
+			}
+		}
+		if (this->get_status_list().is_affected_by(gc::StatusType::challenged)){
+			threat_levels[status_list.get_last_status_of_type(gc::StatusType::challenged)->get_source().get_id_key()] += int(status_list.get_status_mod(gc::StatusType::challenged));
+		}
+
+		std::string lead_key = "";
+		int high_roll = -gc::PRACTICALLY_INFINITY;
+		for (auto it = threat_levels.begin(); it != threat_levels.end(); ++it){
+			int roll = it->second + utility::rng(100);
+			if (roll > high_roll){
+				high_roll = roll;
+				lead_key = it->first;
+			}
+		}
+		for (int i = 0; i < sz; ++i) {
+			if (poss_tgts[i]->get_id_key() == lead_key){
+				tgts.push_back(poss_tgts[i]);
+				break;
+			}
+		}
+		if (DEBUG_TARGET_LOGIC){
+			for (int i = 0; i < sz; ++i) {
+				std::cout << poss_tgts[i]->get_name() << " " << poss_tgts[i]->get_id_key() <<
+					" " << poss_tgts[i]->get_current_effective_hp() << std::endl;
+			}
+			for (auto it = threat_levels.begin(); it != threat_levels.end(); ++it){
+				std::cout << it->first << ": " << it->second << std::endl;
+			}
+			system("pause");
+		}
+	}
+}
+
+const bool Npc::has_personality(gameunit_misc::Personality p) const{
+	for (size_t i = 0; i < personalities.size(); ++i){
+		if (personalities[i] == p)
+			return true;
+	}
+	return false;
+}
