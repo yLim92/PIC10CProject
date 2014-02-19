@@ -36,10 +36,10 @@
     <ClInclude Include="layout.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="utility.h">
+    <ClInclude Include="status.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="status.h">
+    <ClInclude Include="utility.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>

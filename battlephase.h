@@ -34,39 +34,18 @@ public:
 	const Party& get_ally_party() const { return *ally_party; }
 	const Party& get_neutral_party() const { return *neutral_party; }
 
-	/* Ability phases go like this:
-		1. Target step (target_step: set_possible_targets -> select_targets)
-		2. Print attack flavor text (usage_desc)
-		3. Calculate pre-ability things like dodge
-		4. Apply effect if successful (initial_effect_step: apply_initial_effect -> apply_status
-	*/
-
-	int do_ability_phase(GameUnit &owner, Ability &a);
-
-	bool target_step(GameUnit &owner, const Ability &a, std::vector<GameUnit *> &targets);
-	void set_possible_targets(GameUnit &owner, const Ability &a, std::vector<GameUnit *> &possible_tgts);
-	bool select_targets(GameUnit &owner, const Ability &a, std::vector<GameUnit *> &poss_tgts, std::vector<GameUnit *> &targets);
-
-	void effect_step(Ability &a, std::vector<GameUnit *> &targets);
-	void print_health_change(GameUnit *tgt, int magn);
-	void post_damage_step(Ability &a, GameUnit &tgt, int magn);
-	
-	void add_delayed_ability(DelayedAbility d);
-	void remove_delayed_ability(const Ability &a);
-	void do_delayed_ability(Ability &a, std::vector<GameUnit *> &targets);
-
 	BattleView& get_battle_view() { return *bv; }
+	std::vector<GameUnit*>& get_combatants() { return combatants; }
 private:
 	Party* player_party;
 	Party* enemy_party;
 	Party* ally_party;
 	Party* neutral_party;
 
-	//std::vector<Turn* > gu_turn;
-	std::map<GameUnit*, Turn*> gu_turn;
+	//std::map<GameUnit*, Turn*> gu_turn;
 
 	std::vector<GameUnit*> combatants;
-	std::vector<DelayedAbility> delayed_abilities;
+	
 
 	BattleView* bv;
 };
@@ -104,7 +83,7 @@ private:
 	//typedef std::map<Stat, std::pair<std::string, view::Colors> > blockfield;
 	typedef std::map<Stat, std::vector<std::pair<std::string, view::Colors> > > blockfield;
 
-	void add_blockfield(std::vector<blockfield> &bf_v, const GameUnit &gu, const Turn &tu);
+	void add_blockfield(std::vector<blockfield> &bf_v, const GameUnit &gu);
 	void pad();
 	void next_col(int n);
 	std::string status_shorthand(gc::StatusType st);
@@ -113,7 +92,7 @@ private:
 	void print_health_bars(blockfield &bf);
 	void print_turn_bars(blockfield &bf);
 };
-
+/*
 class Turn {
 	friend class BattleView;
 public:
@@ -121,7 +100,7 @@ public:
 	Turn(BattlePhase *b, GameUnit *g);
 	virtual ~Turn() {}
 
-	virtual int do_turn();
+	virtual int do_turn(BattleView &bv);
 protected:
 	BattlePhase *bp;
 	GameUnit *gu;
@@ -134,9 +113,9 @@ public:
 	PlayerTurn(BattlePhase *b, GameUnit *g) : Turn(b, g) {}
 	virtual ~PlayerTurn() {}
 
-	virtual int do_turn();
+	virtual int do_turn(BattleView &bv);
 	
-	virtual void list_abilities();
+	virtual void list_abilities(BattleView &bv);
 };
 
 class NpcTurn : public Turn {
@@ -145,7 +124,7 @@ public:
 	NpcTurn(BattlePhase *b, GameUnit *g) : Turn(b, g) {}
 	virtual ~NpcTurn() {}
 
-	virtual int do_turn();
-};
+	virtual int do_turn(BattleView &bv);
+};*/
 
 #endif

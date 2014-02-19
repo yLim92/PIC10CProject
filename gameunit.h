@@ -10,6 +10,8 @@ class MageAbility;
 class RogueAbility;
 class Party;
 class Turn;
+class BattleView;
+struct DelayedAbility;
 
 namespace gameunit_misc {
 	bool sort_by_speed (const GameUnit *lhs, const GameUnit *rhs);
@@ -43,7 +45,7 @@ public:
 	const int get_strength() const;
 	const int get_dexterity() const;
 	const int get_intelligence() const;
-	const int get_speed() const;
+	const double get_speed() const;
 	const double get_resource_mod() const;
 	const gc::Affiliation get_affiliation() const { return affiliation; }
 	const double get_status_mod(gc::StatusType st) const;
@@ -67,23 +69,29 @@ public:
 	const int get_threat_level() const;
 	virtual const std::string get_resource_display() const { return ""; }
 	virtual const StatusList& get_status_list() const { return status_list; }
-	//virtual StatusList& get_status_list() { return status_list; }
+	StatusList& get_status_list() { return status_list; }
 
 	virtual Ability* get_ability(int i);
+	void add_delayed_ability(DelayedAbility d);
+
 	virtual void apply_targetting_logic(std::vector<GameUnit *> &poss_tgts, std::vector<GameUnit *> &tgts, int max_tgts, gc::TargetType tt) {}
 
-	int change_hp(int c); 
+	void change_hp(int c); 
+	void change_temp_hp(int c);
 	void change_damage_taken(int c) { damage_taken += c; }
 	void set_affiliation(gc::Affiliation a) { affiliation = a; }
 	void add_status(Status *stat);
-	void remove_status_of_type(gc::StatusType stat_type);
+	//void remove_status_of_type(gc::StatusType stat_type);
+	virtual void do_turn(vector<GameUnit*> &combatants, BattleView &bv) {}
 	virtual bool is_turn();
 	void reset_turn_progress() { turn_progress = 0; }
+	void start_channelling();
 	
-	virtual void update();
+	virtual void update(BattleView &bv);
 	virtual const bool is_defeated() const;
 	virtual const bool can_take_turn() const;
 	virtual const bool is_friendly_with(GameUnit &tgt) const;
+	virtual const bool can_continue_channel() const;
 protected:
 	// Stats
 	int level;
@@ -110,9 +118,11 @@ protected:
 	bool is_front;
 	double turn_progress;
 	StatusList status_list;
+	int start_channel_hp;
 
 	//Abilties
 	std::vector<Ability *> abilities;
+	std::vector<DelayedAbility> delayed_abilities;
 
 	//Misc
 	std::string name;
@@ -140,9 +150,10 @@ public:
 	PlayerUnit(std::string n, int lvl) : GameUnit(n, lvl) {}
 	virtual ~PlayerUnit();
 
-	virtual void update();
+	virtual void update(BattleView &bv);
 	virtual void update_resource();
-	//virtual int do_turn(BattlePhase *b);
+	virtual void do_turn(vector<GameUnit*> &combatants, BattleView &bv);
+	virtual void list_abilities(vector<GameUnit*> &combatants, BattleView &bv);
 protected:
 };
 
@@ -170,12 +181,14 @@ public:
 
 	virtual void assign_abilities();
 	virtual void update_resource();
-	virtual void change_mp(int change);
+	virtual void change_mp(double change);
+	virtual void add_sustained_ability(MageAbility* ma) { sustained_abilities.push_back(ma); }
 
 	virtual const int get_mp() const { return int(current_mp); }
 	virtual const std::string get_resource_display() const { return std::to_string(get_mp()); }
 private:
-	std::vector<MageAbility*> m_abilities;
+	vector<MageAbility*> m_abilities;
+	vector<MageAbility*> sustained_abilities;
 
 	double current_mp;
 	double base_mp_regen;
@@ -214,7 +227,7 @@ public:
 
 	virtual void apply_targetting_logic(std::vector<GameUnit *> &poss_tgts, std::vector<GameUnit *> &tgts, int max_tgts, gc::TargetType tt);
 	const bool has_personality(gameunit_misc::Personality p) const;
-	//virtual int do_turn(BattlePhase *b);
+	virtual void do_turn(vector<GameUnit*> &combatants, BattleView &bv);
 protected:
 	std::vector<gameunit_misc::Personality> personalities;
 };

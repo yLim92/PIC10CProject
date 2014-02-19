@@ -38,10 +38,7 @@ gc::ComboPoints gc::operator-(const ComboPoints& rhs){
 }
 
 int utility::rng(int n) {
-	std::random_device rd;
-	std::default_random_engine e1(rd());
-	std::uniform_int_distribution<int> uniform_dist(1, n);
-	return uniform_dist(e1);
+	return rng(1, n);
 }
 int utility::rng(int l, int h) {
 	std::random_device rd;
@@ -102,7 +99,13 @@ int utility::get_user_input(int l, int h, std::vector<int> &ignore) {
 	
 	return std::stoi(user_input);
 }
-
+std::string utility::base_32_hex(){
+	std::string hex = "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ";
+	std::string s = "";
+	for(int i = 0; i < 32; ++i)
+		s += hex.substr(rng(0,61), 1);
+	return s;
+}
 
 void view::clear_screen()
 {

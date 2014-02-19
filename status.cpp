@@ -3,10 +3,11 @@
 #include "abilities.h"
 #include <iostream>
 
-void AttributeListGroup::add_attribute_list(AttributeList attr, bool self_target, int efc){
+void AttributeListGroup::add_attribute_list(AttributeList attr, bool self_target, int efc, std::string k){
 	attributes.push_back(attr);
 	targeting_logic.push_back(self_target);
 	effect_chances.push_back(efc);
+	id_keys.push_back(k);
 }
 //Status mods can be negative.  Mods should be in decimals percents (i.e. 0.08 = 8%)
 const double StatusList::get_status_mod(gc::StatusType st) const {
@@ -48,77 +49,138 @@ const Status* StatusList::get_last_status_of_type(gc::StatusType st) const {
 }
 
 void StatusList::add_status(Status *stat) {
-	stat->status_list = this;
-	statuses[stat->get_type()].push_back(stat);
-
+	Status *dupl = get_status(stat->get_type(), stat->key);
+	if (dupl != nullptr){
+		update_duplicate_status(*dupl, *stat);
+	}
+	else {
+		statuses[stat->get_type()].push_back(stat);
+	}
 }
-
-void StatusList::remove_status(Status *stat) {
-	auto it = stat->status_list->statuses.find(stat->get_type());
-	for (size_t i = 0; i < it->second.size(); ++i){
-		if (it->second[i] == stat){
-			delete stat;
-			it->second.erase(it->second.begin() + i);
+//Need to adjust if there are two or more statuses that are not automatically applied; maybe a shared ptr to a common linked status container?
+void StatusList::update_duplicate_status(Status &ex, Status &up) const{
+	ex.attr_list.duration = (ex.attr_list.duration > up.attr_list.duration) ? ex.attr_list.duration : up.attr_list.duration;
+	ex.attr_list.effect_decay = (ex.attr_list.effect_decay < up.attr_list.effect_decay) ? ex.attr_list.effect_decay : up.attr_list.effect_decay;
+	ex.attr_list.effect_magnitude = (abs(ex.attr_list.effect_magnitude) > abs(up.attr_list.effect_magnitude)) ? ex.attr_list.effect_magnitude : up.attr_list.effect_magnitude;
+	ex.attr_list.interval = (ex.attr_list.interval < up.attr_list.interval) ? ex.attr_list.interval : up.attr_list.interval;
+	ex.attr_list.sustain_chance = (ex.attr_list.sustain_chance > up.attr_list.sustain_chance) ? ex.attr_list.sustain_chance : up.attr_list.sustain_chance;
+	ex.attr_list.sustain_chance_decay = (ex.attr_list.sustain_chance_decay < up.attr_list.sustain_chance_decay) ? ex.attr_list.sustain_chance_decay : up.attr_list.sustain_chance_decay;
+	
+	ex.timer = 0;
+	
+	if (ex.linked_statuses.size() < up.linked_statuses.size()){
+		for (size_t i = 0; i < up.linked_statuses.size(); ++i){
+			bool found = false;
+			for (size_t j = 0; j < ex.linked_statuses.size(); ++j){
+				if (up.linked_statuses[i].key == ex.linked_statuses[j].key){
+					found = true;
+					break;
+				}
+			}
+			if (!found)
+				ex.linked_statuses.push_back(up.linked_statuses[i]);
 		}
 	}
-	if (DEBUG_STATUS){
-		std::cout << "REMOVE STATUS OKAY" << std::endl;
-		system("pause");
+
+	delete &up;
+}
+Status* StatusList::get_status(gc::StatusType st, string k){
+	auto it = statuses.find(st);
+	if (it != statuses.end()){
+		for (size_t i = 0; i < it->second.size(); ++i){
+			if (k == it->second[i]->key){
+				return it->second[i];
+			}
+		}
+	}
+	return nullptr;
+}
+void StatusList::remove_individual_status(gc::StatusType st, string k) {
+	auto it = statuses.find(st);
+	if (it != statuses.end()){
+		for (size_t i = 0; i < it->second.size(); ++i){
+			if (it->second[i]->key == k){
+				delete it->second[i];
+				it->second.erase(it->second.begin() + i);
+				return;
+			}
+		}
 	}
 }
 void StatusList::remove_statuses_of_type(gc::StatusType stat_type){
 	auto i = statuses.find(stat_type);
-	try {
-		if (i == statuses.end()){
-			std::exception e("Could not find statuses of this stat type");
-			throw e;
-		}
-		for (size_t j = 0; j < i->second.size(); ++j){
-			for (size_t k = 0; k < i->second[j]->linked_statuses.size(); ++k){
-				remove_status(i->second[j]->linked_statuses[0]);
-				i->second[j]->linked_statuses.erase(i->second[j]->linked_statuses.begin());
-			}
-			delete i->second[j];
-			i->second.erase(i->second.begin() + j);
-			std::cout << i->second.size() << std::endl;
-			std::cout << int(i->first) << std::endl;
-			system("pause");
-		}
-	}
-	catch (std::exception &ex) {
-		std::cout << ex.what() << std::endl;
-		system("pause");
+	if (i == statuses.end())
+		return;
+	while (int(i->second.size()) > 0){
+		remove_linked_statuses(*i->second[0]);
+		delete i->second[0];
+		i->second.erase(i->second.begin());
 	}
 }
+
 void StatusList::update(){
 	for (auto i = statuses.begin(); i != statuses.end(); ++i){
-		for (size_t j = 0; j < i->second.size(); ++j){
+		for (size_t j = 0; j < i->second.size();){
 			if (!i->second[j]->update(gu)){
-				for (size_t k = 0; k < i->second[j]->linked_statuses.size(); ++k){
-					remove_status(i->second[j]->linked_statuses[0]);
-					i->second[j]->linked_statuses.erase(i->second[j]->linked_statuses.begin());
-				}
+				remove_linked_statuses(*i->second[j]);
 				delete i->second[j];
 				i->second.erase(i->second.begin() + j);
 			}
+			else
+				 ++j;
 		}
 	}
 }
 void StatusList::empty() {
 	for (auto i = statuses.begin(); i != statuses.end(); ++i){
-		for (size_t j = 0; j < i->second.size(); ++j){
-			int ls_size = int(i->second[j]->linked_statuses.size());
-			for (int k = 0; k < ls_size; ++k){
-				remove_status(i->second[j]->linked_statuses[0]);
-				i->second[j]->linked_statuses.erase(i->second[j]->linked_statuses.begin());
+		while (int(i->second.size()) > 0){
+			remove_linked_statuses(*i->second[0]);
+			delete i->second[0];
+			i->second.erase(i->second.begin());
+		}
+		i->second.clear();
+	}
+}
+void StatusList::remove_linked_statuses(Status &stat){
+	int ls_size = int(stat.linked_statuses.size());
+	for (int i = 0; i < ls_size; ++i){
+		LinkedStatus ls = stat.linked_statuses[0];
+		ls.s_list->remove_individual_status(ls.type, ls.key);
+		stat.linked_statuses.erase(stat.linked_statuses.begin());
+	}
+}
+
+void StatusList::remove_status_and_links(gc::StatusType st, string k) {
+	Status *stat = get_status(st, k);
+	try {
+		if (stat == nullptr){
+			std::exception ex("Could not find stat to remove.");
+			throw ex;
+		}
+	}
+	catch (std::exception &e){
+		cout << e.what() << endl;
+		system("pause");
+		return;
+	}
+
+	remove_linked_statuses(*stat);
+	remove_individual_status(st, k);
+}
+
+void StatusList::do_ability_statuses(gc::StatusType st, GameUnit &tgt, int magn, double mult, BattleView &bv, Ability &trig_abl, GameUnit &current){
+	if (st == gc::StatusType::ability_status_on_dmg || st == gc::StatusType::ability_status_on_hit){
+		auto it = statuses.find(st);
+		if (it != statuses.end()){
+			for (int j = 0; j < int(it->second.size()); ++j){
+				it->second[j]->from_ability->do_ability_as_status(st, tgt, magn, mult, bv, trig_abl, current);
 			}
-			delete i->second[j];
-			i->second.erase(i->second.begin() + j);
 		}
 	}
 }
 
-Status::Status(AttributeList attr, Ability *a) : attr_list(attr), from_ability(a), timer(0) {
+
+Status::Status(AttributeList attr, Ability *a, std::string k, StatusList &sl) : attr_list(attr), from_ability(a), timer(0), key(k), status_list(&sl) {
 }
 Status::~Status(){
 }
@@ -150,6 +212,6 @@ int Status::update(GameUnit* gu) {
 	return 1;
 }
 void Status::link_status(Status* ls){
-	this->linked_statuses.push_back(ls);
-	ls->linked_statuses.push_back(this);
+	this->linked_statuses.push_back(LinkedStatus(*ls->status_list, ls->key, ls->get_type()));
+	ls->linked_statuses.push_back(LinkedStatus(*this->status_list, this->key, this->get_type()));
 }

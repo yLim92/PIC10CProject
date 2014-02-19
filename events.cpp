@@ -44,13 +44,13 @@ gc::RoomCode Event::do_event() {
 
 gc::RoomCode BattleEvent::do_event() {
 	if (room_code == gc::RoomCode::unvisited){
-		std::cout << "You enter the room." << std::endl;
-		std::cout << "BATTLE!" << std::endl;
 		std::vector<GameUnit*> e;
 		for (int i = 0; i < 2; ++i)
 			e.push_back(new Npc("Bob", 10));
 		Party *enemy_party = new Party(e,gc::Affiliation::enemy);
 		BattlePhase b(party, enemy_party);
+		std::cout << "You enter the room." << std::endl;
+		std::cout << "BATTLE!" << std::endl;
 		b.do_battle();
 
 		room_code = gc::RoomCode::success;

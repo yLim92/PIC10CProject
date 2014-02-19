@@ -24,11 +24,11 @@ BattlePhase::BattlePhase(Party* pp, Party* ep) : player_party(pp), enemy_party(e
 	neutral_party = new Party();
 
 	for (size_t i = 0; i < player_party->get_party_members().size(); i++){
-		gu_turn[player_party->get_party_members()[i]] = new PlayerTurn(this, player_party->get_party_members()[i]);
+		//gu_turn[player_party->get_party_members()[i]] = new PlayerTurn(this, player_party->get_party_members()[i]);
 		combatants.push_back(player_party->get_party_members()[i]);
 	}
 	for (size_t i = 0; i < enemy_party->get_party_members().size(); i++){
-		gu_turn[enemy_party->get_party_members()[i]] = new NpcTurn(this, enemy_party->get_party_members()[i]);
+		//gu_turn[enemy_party->get_party_members()[i]] = new NpcTurn(this, enemy_party->get_party_members()[i]);
 		combatants.push_back(enemy_party->get_party_members()[i]);
 	}
 	bv = new BattleView(this);
@@ -47,19 +47,19 @@ BattlePhase::BattlePhase(Party* pp, Party* ep, Party* ap, Party* np) : player_pa
 
 	//can sort combatants by speed, then fill gu_turn map with sorted pairs to solve "ties"
 	for (size_t i = 0; i < player_party->get_party_members().size(); i++){
-		gu_turn[player_party->get_party_members()[i]] = new PlayerTurn(this, player_party->get_party_members()[i]);
+		//gu_turn[player_party->get_party_members()[i]] = new PlayerTurn(this, player_party->get_party_members()[i]);
 		combatants.push_back(player_party->get_party_members()[i]);
 	}
 	for (size_t i = 0; i < enemy_party->get_party_members().size(); i++){
-		gu_turn[enemy_party->get_party_members()[i]] = new NpcTurn(this, enemy_party->get_party_members()[i]);
+		//gu_turn[enemy_party->get_party_members()[i]] = new NpcTurn(this, enemy_party->get_party_members()[i]);
 		combatants.push_back(enemy_party->get_party_members()[i]);
 	}
 	for (size_t i = 0; i < ally_party->get_party_members().size(); i++){
-		gu_turn[ally_party->get_party_members()[i]] = new NpcTurn(this, ally_party->get_party_members()[i]);
+		//gu_turn[ally_party->get_party_members()[i]] = new NpcTurn(this, ally_party->get_party_members()[i]);
 		combatants.push_back(ally_party->get_party_members()[i]);
 	}
 	for (size_t i = 0; i < neutral_party->get_party_members().size(); i++){
-		gu_turn[neutral_party->get_party_members()[i]] = new NpcTurn(this, neutral_party->get_party_members()[i]);
+		//gu_turn[neutral_party->get_party_members()[i]] = new NpcTurn(this, neutral_party->get_party_members()[i]);
 		combatants.push_back(neutral_party->get_party_members()[i]);
 	}
 	
@@ -72,27 +72,12 @@ int BattlePhase::do_battle() {
 		bv->print_battle_view();
 		clock_t begin = clock();
 		while ((((double)(clock() - begin)) / CLOCKS_PER_SEC) < 1.0/gc::FPS){}
-		for (size_t i = 0; i < delayed_abilities.size(); ++i){
-			if (--delayed_abilities[i].delay <= 0){
-				do_delayed_ability(*delayed_abilities[i].ability, delayed_abilities[i].targets);
-				//if the delayed ability does NOT require channelling, but the user is channelling, will turn off the channel.  If they aren't channeling, it will throw
-				//a nasty error
-				//RIGHT NOW THIS ASSUMES I WILL ALWAYS MAKE DELAYED ABILITIES WITH A CHANNEL...MUST BE CHANGED IF MY LOGIC CHANGES; 
-				delayed_abilities[i].ability->get_owner().remove_status_of_type(gc::StatusType::channelling);
-				delayed_abilities.erase(delayed_abilities.begin() + i);
-			}
-		}
-		if (DEBUG_BATTLE)
-			std::cout << "Delayed Abilities Done" << std::endl;
-
-		for (auto i = gu_turn.begin(); i != gu_turn.end(); ++i){
-			if (i->first->can_take_turn() && i->first->is_turn()){
-				i->second->do_turn();
-				//i->second->reset_increment();
-			}
+		for (size_t i = 0; i < combatants.size(); ++i){
+			if (combatants[i]->can_take_turn() && combatants[i]->is_turn())
+				combatants[i]->do_turn(combatants, *bv);
 		}
 		for (size_t i = 0; i < combatants.size(); ++i){
-			combatants[i]->update();
+			combatants[i]->update(*bv);
 		}
 	}
 	return 0;
@@ -105,260 +90,6 @@ bool BattlePhase::is_battle_complete() {
 		return true;
 	return false;
 }
-int BattlePhase::do_ability_phase(GameUnit &owner, Ability &a){
-	std::vector<GameUnit *> targets;
-	if (!target_step(owner, a, targets))
-		return 0;
-
-	a.deduct_ability_cost();
-
-	bv->add_to_battle_log(a.get_initial_description(), view::white); 
-
-	if (a.get_delay() == 0)
-		effect_step(a, targets);
-	else {
-		add_delayed_ability(DelayedAbility(a, a.get_delay(), targets));
-		a.apply_statuses(owner, 1);
-	}
-
-	return 1;
-}
-bool BattlePhase::target_step(GameUnit &owner,const Ability &a, std::vector<GameUnit *> &targets){
-	std::vector<GameUnit *> possible_tgts;
-	
-	set_possible_targets(owner, a, possible_tgts);
-	
-	return select_targets(owner, a, possible_tgts, targets);
-}
-void BattlePhase::set_possible_targets(GameUnit &owner, const Ability &a, std::vector<GameUnit *> &possible_tgts) {
-	using namespace gc;
-	Affiliation afl = owner.get_affiliation();
-	if (a.get_target_type() == gc::TargetType::single_friendly){
-		if (afl == Affiliation::player ||
-			afl == Affiliation::ally){
-			for (size_t i = 0; i < player_party->get_party_members().size(); ++i){
-				if (!player_party->get_party_members()[i]->is_defeated())
-					possible_tgts.push_back(player_party->get_party_members()[i]);
-			}
-			for (size_t i = 0; i < ally_party->get_party_members().size(); ++i){
-				if (!ally_party->get_party_members()[i]->is_defeated())
-					possible_tgts.push_back(ally_party->get_party_members()[i]);
-			}
-		}
-		if (afl == Affiliation::enemy){
-			for (size_t i = 0; i < enemy_party->get_party_members().size(); ++i){
-				if (!enemy_party->get_party_members()[i]->is_defeated())
-					possible_tgts.push_back(enemy_party->get_party_members()[i]);
-			}
-		}
-		if (afl == Affiliation::neutral){
-			for (size_t i = 0; i < neutral_party->get_party_members().size(); ++i){
-				if (!neutral_party->get_party_members()[i]->is_defeated())
-					possible_tgts.push_back(neutral_party->get_party_members()[i]);
-			}
-		}
-	}
-	else if (a.get_target_type() == gc::TargetType::single_enemy) {
-		if (afl == Affiliation::player ||
-			afl == Affiliation::ally ||
-			afl == Affiliation::neutral){
-			for (size_t i = 0; i < enemy_party->get_party_members().size(); ++i){
-				if (!enemy_party->get_party_members()[i]->is_defeated())
-					possible_tgts.push_back(enemy_party->get_party_members()[i]);
-			}
-		}
-		if (afl == Affiliation::enemy ||
-			afl == Affiliation::neutral){
-			for (size_t i = 0; i < player_party->get_party_members().size(); ++i){
-				if (!player_party->get_party_members()[i]->is_defeated())
-					possible_tgts.push_back(player_party->get_party_members()[i]);
-			}
-			for (size_t i = 0; i < ally_party->get_party_members().size(); ++i){
-				if (!ally_party->get_party_members()[i]->is_defeated())
-					possible_tgts.push_back(ally_party->get_party_members()[i]);
-			}
-		}
-		if (afl == Affiliation::player ||
-			afl == Affiliation::ally ||
-			afl == Affiliation::enemy){
-			for (size_t i = 0; i < neutral_party->get_party_members().size(); ++i){
-				if (!neutral_party->get_party_members()[i]->is_defeated())
-					possible_tgts.push_back(neutral_party->get_party_members()[i]);
-			}
-		}
-	}
-	else if (a.get_target_type() == gc::TargetType::self)
-		possible_tgts.push_back(&owner);
-}
-
-//Prompts player to select targets based on the tgt array passed in OR
-//	has npc do their auto targetting
-//Push_backs the targets vector
-//Returns true if targets were set; false if back was chosen
-bool BattlePhase::select_targets(GameUnit &owner, const Ability &a, std::vector<GameUnit*> &poss_tgts, std::vector<GameUnit *> &targets) {
-	int sz = poss_tgts.size();
-	if (a.get_owner().get_affiliation() == gc::Affiliation::player) {
-		std::vector<int> ignore;
-		for (int i = 0; i < sz; ++i) {
-			if (!poss_tgts[i]->is_defeated())
-				view::ccn(std::to_string(i + 1) + ". " + poss_tgts[i]->get_name(), view::white);
-			else {
-				view::ccn(std::to_string(i + 1) + ". " + poss_tgts[i]->get_name(), view::gray);
-				ignore.push_back(i + 1);
-			}
-		}
-		std::cout << sz + 1 << ". Back" << std::endl;
-		int user_input = utility::get_user_input(sz + 1, ignore);
-
-		if (user_input <= sz){
-			targets.push_back(poss_tgts[user_input - 1]);
-			return true;
-		}
-		else
-			return false;
-	}
-	else{
-		owner.apply_targetting_logic(poss_tgts, targets, 1, a.get_target_type());
-		//targets.push_back(poss_tgts[utility::rng(sz) - 1]);
-		return true;
-	}
-}
-
-
-void BattlePhase::effect_step(Ability &a, std::vector<GameUnit *> &targets){
-	int sz = targets.size();
-	for (int i = 0; i < sz; ++i) {
-		if (targets[i]->is_defeated())
-			bv->add_to_battle_log(targets[i]->get_name() + " is already defeated!", view::white);
-		else {
-			if (!a.is_friendly()){
-				int final_accuracy = a.accuracy() - targets[i]->get_dodge() - utility::rng(100);
-				if (final_accuracy >= 0){
-					double calc_magnitude;
-					double calc_effect_chance_mult = 1;
-					if (a.changes_health() && final_accuracy >= gc::PERFECT_HIT_THRESHOLD){
-						bv->add_to_battle_log("A perfect hit!", view::yellow);
-						calc_magnitude = a.effect_magnitude() * a.effect_spread(true);
-						calc_effect_chance_mult *= 2.;
-					}
-					else {
-						calc_magnitude = a.effect_magnitude() * a.effect_spread(false);
-					}
-
-					int calc_crit = a.critical_chance() - utility::rng(100);
-					if (a.changes_health() && calc_crit >= 0){
-						bv->add_to_battle_log("CRITICAL!!", view::red);
-						calc_magnitude *= a.critical_damage_multiplier();
-						calc_effect_chance_mult *= a.critical_damage_multiplier();
-					}
-
-					double defense_mod = double(targets[i]->get_damage_reduction() - a.get_owner().get_armor_ignore())/100.;
-					if (defense_mod < 0)
-						defense_mod = 0;
-					if (a.changes_health()){
-						if (a.is_damaging()){
-							calc_magnitude /= (1 + defense_mod);
-							calc_magnitude *= -1;
-						}
-						targets[i]->change_hp(int(calc_magnitude));
-						print_health_change(targets[i], int(calc_magnitude));
-					}
-					if (a.changes_status()){
-						a.apply_statuses(*targets[i], calc_effect_chance_mult);
-					}
-					post_damage_step(a, *targets[i], int(calc_magnitude));
-					if (DEBUG_BATTLE){
-						std::cout << "Final Acc: " << final_accuracy << std::endl;
-						std::cout << "Pre-Armor Magnitude: " << calc_magnitude*(1 + defense_mod) << std::endl;
-						std::cout << "Final Magnitude: " << calc_magnitude << std::endl;
-						std::cout << "Acc: " << a.accuracy() << std::endl;
-						std::cout << "Dodge: " << targets[i]->get_dodge() << std::endl;
-						std::cout << "Damage_reduction: " << defense_mod << std::endl;
-						system("pause");
-					}
-				}
-				else {
-					bv->add_to_battle_log(a.get_owner().get_name() + " misses...", view::white);
-					if (DEBUG_BATTLE){
-						std::cout << "Final Acc: " << final_accuracy << std::endl;
-						system("pause");
-					}
-				}
-			}
-			else {
-				double calc_magnitude = a.effect_magnitude();
-				if (a.changes_health()){
-					if (a.is_damaging())
-						calc_magnitude *= -1;
-					targets[i]->change_hp(int(calc_magnitude));
-					print_health_change(targets[i], int(calc_magnitude));
-				}
-				if (a.changes_status()){
-					a.apply_statuses(*targets[i], 1);
-				}
-			}
-		}
-	}
-}
-void BattlePhase::post_damage_step(Ability &a, GameUnit &tgt, int magn) {
-	a.on_successful_hit();
-	int counter_dmg = int(tgt.get_status_mod(gc::StatusType::counter));
-	if (counter_dmg){
-		a.get_owner().change_hp(-counter_dmg);
-		std::vector<std::pair<std::string, int> > text;
-		text.push_back(std::make_pair(a.get_owner().get_name() + " takes ", view::white)); text.push_back(std::make_pair(std::to_string(counter_dmg), view::red)); text.push_back(std::make_pair(" counter damage.", view::white));
-		bv->add_to_battle_log(text);
-	}
-	const Status* channelled_stat = tgt.get_status_list().get_last_status_of_type(gc::StatusType::channelling);
-	if (channelled_stat != nullptr){
-		remove_delayed_ability(channelled_stat->get_creating_ability());
-		tgt.remove_status_of_type(gc::StatusType::channelling);
-		std::vector<std::pair<std::string, int> > text;
-		text.push_back(std::make_pair(tgt.get_name() + " was disrupted...", view::white));
-		bv->add_to_battle_log(text);
-	}
-}
-/*
-void BattlePhase::apply_status(Ability &a, StatusBlock &sb, GameUnit *tgt) {
-	int sz = sb.get_status_count();
-	for (int i = 0; i < sz; ++i) {
-		if (sb.get_effect_chance(i) - utility::rng(100) >= 0){
-			if (sb.get_target_type(i) == gc::TargetType::single)
-				tgt->add_status(&(sb.get_status(i)));
-			else if (sb.get_target_type(i) == gc::TargetType::self)
-				a.get_owner().add_status(&(sb.get_status(i)));
-		}
-	}
-}*/
-void BattlePhase::print_health_change(GameUnit *tgt, int magn) {
-	if (magn <= 0){
-		std::vector<std::pair<std::string, int> > text;
-		text.push_back(std::make_pair(tgt->get_name() + " takes ", view::white)); text.push_back(std::make_pair(std::to_string(-magn), view::red)); text.push_back(std::make_pair(" damage.", view::white));
-		bv->add_to_battle_log(text);
-	}
-	else {
-		std::vector<std::pair<std::string, int> > text;
-		text.push_back(std::make_pair(tgt->get_name() + " recovers ", view::white)); text.push_back(std::make_pair(std::to_string(magn), view::green)); text.push_back(std::make_pair(" temporary hp.", view::white));
-		bv->add_to_battle_log(text);
-	}
-}
-
-void BattlePhase::add_delayed_ability(DelayedAbility d) {
-	delayed_abilities.push_back(d);
-}
-//Attempts to remove delayed ability, if it exists in the battlephase's delayed ability list
-void BattlePhase::remove_delayed_ability(const Ability& a) {
-	for(size_t i = 0; i < delayed_abilities.size(); ++i){
-		if (delayed_abilities[i].ability == &a)
-			delayed_abilities.erase(delayed_abilities.begin() + i);
-	}
-}
-void BattlePhase::do_delayed_ability(Ability &a, std::vector<GameUnit *> &targets) {
-	bv->add_to_battle_log(a.get_delayed_description(), view::white);
-	effect_step(a, targets);
-}
-
-
 
 BattleView::BattleView(BattlePhase *b) : bp(b){
 	total_width = 90;
@@ -373,7 +104,7 @@ void BattleView::pad() {
 void BattleView::next_col(int n) {
 	std::cout << std::setw(column_width - n); view::cc("X", view::black); view::cc("XX", view::black); 
 }
-void BattleView::add_blockfield(std::vector<BattleView::blockfield> &bf_v, const GameUnit &gu, const Turn &tu) {
+void BattleView::add_blockfield(std::vector<BattleView::blockfield> &bf_v, const GameUnit &gu) {
 	using namespace std;
 	using namespace gc;
 
@@ -420,6 +151,7 @@ void BattleView::add_blockfield(std::vector<BattleView::blockfield> &bf_v, const
 			it->first == StatusType::dodge ||
 			it->first == StatusType::speed ||
 			it->first == StatusType::accuracy ||
+			it->first == StatusType::temp_hp_up ||
 			it->first == StatusType::regen_temp_hp ||
 			it->first == StatusType::regen_resource){
 			if (it->second >= 0) stat_color = view::green;
@@ -434,7 +166,8 @@ void BattleView::add_blockfield(std::vector<BattleView::blockfield> &bf_v, const
 			it->first == gc::StatusType::challenged){
 			stat_color = view::red;
 		}
-		else if (it->first == gc::StatusType::counter)
+		else if (it->first == gc::StatusType::ability_status_on_dmg ||
+				 it->first == gc::StatusType::ability_status_on_hit)
 			stat_color = view::green;
 		else if (it->first == gc::StatusType::threat_level){
 			if (it->second >= 0) stat_color = view::red;
@@ -463,11 +196,13 @@ std::string BattleView::status_shorthand(gc::StatusType st){
 	else if (st == gc::StatusType::burn)			return "Brn ";
 	else if (st == gc::StatusType::bleed)			return "Bld ";
 	else if (st == gc::StatusType::poison)			return "Psn ";
+	else if (st == gc::StatusType::temp_hp_up)		return "Shd ";
 	else if (st == gc::StatusType::regen_temp_hp)	return "RTH ";
 	else if (st == gc::StatusType::regen_resource)	return "ReR ";
-	else if (st == gc::StatusType::counter)			return "Ctr ";
 	else if (st == gc::StatusType::challenged)		return "Chl ";
 	else if (st	== gc::StatusType::threat_level)	return "ThL ";
+	else if (st	== gc::StatusType::ability_status_on_dmg)	return "OnD ";
+	else if (st	== gc::StatusType::ability_status_on_hit)	return "OnH ";
 	else return "";
 }
 
@@ -519,15 +254,14 @@ void BattleView::print_combatants(){
 	vector<blockfield> lb;
 	vector<blockfield> rb;
 
-
 	for (size_t i = 0; i < pp.size(); ++i)
-		add_blockfield(lb, *pp[i], *(bp->gu_turn[pp[i]]));
+		add_blockfield(lb, *pp[i]);
 	for (size_t i = 0; i < ap.size(); ++i)
-		add_blockfield(lb, *ap[i], *(bp->gu_turn[ap[i]]));
+		add_blockfield(lb, *ap[i]);
 	for (size_t i = 0; i < ep.size(); ++i)
-		add_blockfield(rb, *ep[i], *(bp->gu_turn[ep[i]]));
+		add_blockfield(rb, *ep[i]);
 	for (size_t i = 0; i < np.size(); ++i)
-		add_blockfield(rb, *np[i], *(bp->gu_turn[np[i]]));
+		add_blockfield(rb, *np[i]);
 	
 	view::clear_screen();
 
@@ -639,59 +373,61 @@ void BattleView::add_to_battle_log(const std::vector<std::pair<std::string, int>
 	return;
 }
 
-
-Turn::Turn(BattlePhase *b, GameUnit *g) : bp(b), gu(g)  {
-}
-
-int Turn::do_turn() {
-	return 0;
-}
-
-int PlayerTurn::do_turn() {
-	std::cout << gu->get_name() << " Resource: " << gu->get_resource_display() << std::endl;	
-	std::cout << "1. Abilities" << std::endl;
-	
-	int user_input = utility::get_user_input(1);
-	if (user_input == 1){
-		list_abilities();
-	}
-	return 0;
-}
-
-void PlayerTurn::list_abilities() {
-	//std::vector<Ability*> abl = gu->get_abilities();
-	std::vector<int> ignore;
-
-	int i = 0;
-	while (gu->get_ability(i) != nullptr){
-		view::Colors col = view::white;
-		if (!gu->get_ability(i)->is_usable()){	
-			col = view::gray;
-			ignore.push_back(i+1);
-		}
-		view::cc(std::to_string(i+1) + ": " + gu->get_ability(i)->get_name(), col);
-		std::cout << std::setw(25-gu->get_ability(i)->get_name().length()); 
-		view::ccn(gu->get_ability(i)->get_cost_display(), col);
-		++i;
-	}
-	int sz = i;
-	view::ccn(std::to_string(sz+1) + ": Back", view::white);
-	int user_input = utility::get_user_input(sz + 1, ignore);
-	if (user_input <= sz){ 
-		if (bp->do_ability_phase(*gu, *gu->get_ability(user_input - 1) ) ) {
-			gu->reset_turn_progress();
-			return;
-		}
-		else //Continue to list abilities if back was selected
-			list_abilities();
-	}
-	else
-		do_turn();
-	return;
-}
-
-int NpcTurn::do_turn() {
-	bp->do_ability_phase(*gu, *gu->get_ability(utility::rng(gu->get_abilities().size()) - 1) );
-	gu->reset_turn_progress();
-	return 0;
-}
+//
+//Turn::Turn(BattlePhase *b, GameUnit *g) : bp(b), gu(g)  {
+//}
+//
+//int Turn::do_turn(BattleView &bv) {
+//	return 0;
+//}
+//
+//int PlayerTurn::do_turn(BattleView &bv) {
+//	bv.print_battle_view();
+//	std::cout << gu->get_name() << " Resource: " << gu->get_resource_display() << std::endl;	
+//	std::cout << "1. Abilities" << std::endl;
+//	
+//	int user_input = utility::get_user_input(1);
+//	if (user_input == 1){
+//		list_abilities(bv);
+//	}
+//	return 0;
+//}
+//
+//void PlayerTurn::list_abilities(BattleView &bv) {
+//	//std::vector<Ability*> abl = gu->get_abilities();
+//	std::vector<int> ignore;
+//
+//	int i = 0;
+//	while (gu->get_ability(i) != nullptr){
+//		view::Colors col = view::white;
+//		if (!gu->get_ability(i)->is_usable()){	
+//			col = view::gray;
+//			ignore.push_back(i+1);
+//		}
+//		view::cc(std::to_string(i+1) + ": " + gu->get_ability(i)->get_name(), col);
+//		std::cout << std::setw(25-gu->get_ability(i)->get_name().length()); 
+//		view::ccn(gu->get_ability(i)->get_cost_display(), col);
+//		++i;
+//	}
+//	int sz = i;
+//	view::ccn(std::to_string(sz+1) + ": Back", view::white);
+//	int user_input = utility::get_user_input(sz + 1, ignore);
+//	if (user_input <= sz){ 
+//		if (gu->get_ability(user_input - 1)->do_ability_phase(bp->get_combatants(), bp->get_battle_view())) {
+//			gu->reset_turn_progress();
+//			return;
+//		}
+//		else //Continue to list abilities if back was selected
+//			list_abilities(bv);
+//	}
+//	else
+//		do_turn(bv);
+//	return;
+//}
+//
+//int NpcTurn::do_turn(BattleView &bv) {
+//	bv.print_battle_view();
+//	gu->get_ability(utility::rng(gu->get_abilities().size()) - 1)->do_ability_phase(bp->get_combatants(), bp->get_battle_view());
+//	gu->reset_turn_progress();
+//	return 0;
+//}

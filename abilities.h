@@ -37,15 +37,37 @@ public:
 
 	virtual void set_defaults();
 
+	/* Ability phases go like this:
+		1. Target step (target_step: set_possible_targets -> select_targets)
+		2. Print attack flavor text (usage_desc)
+		3. Calculate pre-ability things like dodge
+		4. Apply effect if successful (initial_effect_step: apply_initial_effect -> apply_status
+	*/
+	virtual int do_ability_phase(std::vector<GameUnit*> &combatants, BattleView &bv);
+
+	bool target_step(std::vector<GameUnit*> &combatants, std::vector<GameUnit *> &targets);
+	void set_possible_targets(std::vector<GameUnit*> &combatants, std::vector<GameUnit *> &possible_tgts);
+	virtual bool select_targets(std::vector<GameUnit *> &poss_tgts, std::vector<GameUnit *> &targets);
+
 	virtual void deduct_ability_cost() {}
+
+	virtual void effect_step(std::vector<GameUnit *> &targets, BattleView &bv);
+	virtual void do_harmful_effect(GameUnit &tgt, BattleView &bv, bool does_damage, bool does_status, bool do_post_phase);
+	virtual void damage_step(GameUnit &tgt, double &magn, BattleView &bv);
+	virtual void set_pre_hit_values(GameUnit &tgt, bool &hit, double &magn, double &mult, BattleView &bv);
+	void print_health_change(GameUnit *tgt, int magn, BattleView &bv);
 	virtual void apply_statuses(GameUnit &tgt, double mult);
-	virtual void on_successful_hit() {}
+	virtual void post_attack_phase(bool hit, GameUnit &tgt, int magn, double mult, BattleView &bv);
+	virtual void do_ability_as_status(gc::StatusType, GameUnit &tgt, int magn, double mult, BattleView &bv, Ability &trig_abl, GameUnit &current) {}
+	
+	void do_delayed_ability(std::vector<GameUnit *> &targets, BattleView &bv);
 
 	const int effect_magnitude() const;
+	const int mod_only_magnitude() const;
 	virtual const double effect_spread(bool perfect) const;
 	const int critical_chance() const;
 	const double critical_damage_multiplier() const;
-	const int accuracy() const;
+	virtual const int accuracy() const;
 	//const int status_effect_chance() const;
 	const int get_delay() const { return delay; }
 	virtual const std::string get_name() const { return name; }
@@ -55,6 +77,7 @@ public:
 	virtual const GameUnit& get_owner() const { return *owner; }
 
 	virtual const std::vector<AttributeListGroup> status_templates() const;
+	const void link_all(vector<pair<int, int> > &ll, int n) const;
 
 	virtual const std::string get_cost_display() const { return ""; } 
 
@@ -63,7 +86,7 @@ public:
 
 	virtual const bool is_usable() const { return true; }
 	const bool is_friendly() const;
-
+	const bool is_single_target() const;
 	const bool changes_health() const { return health_effect; }
 	const bool is_damaging() const { return damaging; }
 	const bool changes_status() const { return status_effect; }
@@ -98,7 +121,8 @@ protected:
 	bool damaging;
 	bool status_effect;
 	gc::TargetType target_type;
-
+	
+	std::vector<std::string> status_keys;
 };
 
 class ChargeStrike : public Ability {
@@ -107,7 +131,6 @@ public:
 	ChargeStrike(GameUnit *g);
 	virtual ~ChargeStrike() {}
 	
-	const std::vector<AttributeListGroup> ChargeStrike::status_templates() const;
 protected:
 };
 
@@ -139,9 +162,14 @@ public:
 	virtual const bool is_usable() const; 
 	virtual const std::string get_cost_display() const;
 	virtual void deduct_ability_cost();
+	virtual void start_sustaining();
+	virtual void stop_sustaining();
+
 protected:
 	int base_mp_cost;
 	Mage *mage;
+	bool is_sustaining;
+	std::pair<gc::StatusType, string> sustain_status;
 };
 
 class RogueAbility : public Ability {
@@ -169,7 +197,6 @@ public:
 
 	virtual const std::vector<AttributeListGroup> status_templates() const;
 protected:
-	
 };
 
 class Hold : public WarriorAbility {
@@ -195,6 +222,7 @@ public:
 	virtual ~Retaliate() {}
 
 	virtual const std::vector<AttributeListGroup> status_templates() const;
+	virtual void do_ability_as_status(gc::StatusType st, GameUnit &tgt, int magn, double mult, BattleView &bv, Ability &trig_abl, GameUnit &current);
 };
 class Batter: public WarriorAbility {
 public:
@@ -203,20 +231,27 @@ public:
 
 	virtual const bool is_usable() const; 
 	virtual void decrement_cd();
-	virtual void on_successful_hit();
+	virtual void post_attack_phase(bool hit, GameUnit &tgt, int magn, double mult, BattleView &bv);
+
 	virtual const std::vector<AttributeListGroup> status_templates() const;
+	virtual const int accuracy() const;
 private:
 	int free_usage_timer;
+	int consecutive_uses;
 };
 class Cleave: public WarriorAbility {
 public:
 	Cleave(Soldier *o);
 	virtual ~Cleave() {}
+
+	virtual bool select_targets(std::vector<GameUnit *> &poss_tgts, std::vector<GameUnit *> &targets);
 };
 class Resolve: public WarriorAbility {
 public:
 	Resolve(Soldier *o);
 	virtual ~Resolve() {}
+
+	virtual const std::vector<AttributeListGroup> status_templates() const;
 };
 class Strike: public WarriorAbility {
 public:
@@ -241,8 +276,59 @@ public:
 	Meteor(Mage *o);
 	virtual ~Meteor() {}
 
-	virtual const std::vector<AttributeListGroup> status_templates() const;
 protected:
+};
+
+class Bolt : public MageAbility {
+public:
+	Bolt(Mage *o);
+	virtual ~Bolt() {}
+
+	virtual const std::vector<AttributeListGroup> status_templates() const;
+};
+
+class LightningShield : public MageAbility {
+public:
+	LightningShield(Mage *o);
+	virtual ~LightningShield() {}
+
+	virtual const std::vector<AttributeListGroup> status_templates() const;
+	virtual void do_ability_as_status(gc::StatusType st, GameUnit &tgt, int magn, double mult, BattleView &bv, Ability &trig_abl, GameUnit &current);
+};
+
+class SummonFamiliar : public MageAbility {
+public:
+	SummonFamiliar(Mage *o);
+	virtual ~SummonFamiliar() {}
+
+	
+};
+
+class Barrier : public MageAbility {
+public:
+	Barrier(Mage *o);
+	virtual ~Barrier() {}
+
+	virtual const std::vector<AttributeListGroup> status_templates() const;
+	virtual void apply_statuses(GameUnit &tgt, double mult);
+};
+
+class Curse : public MageAbility {
+public:
+	Curse(Mage *o);
+	virtual ~Curse() {}
+
+	virtual void post_attack_phase(bool hit, GameUnit &tgt, int magn, double mult, BattleView &bv);
+	virtual const std::vector<AttributeListGroup> status_templates() const;
+};
+
+class Enfeeble : public MageAbility {
+public:
+	Enfeeble(Mage *o);
+	virtual ~Enfeeble() {}
+
+	virtual void post_attack_phase(bool hit, GameUnit &tgt, int magn, double mult, BattleView &bv);
+	virtual const std::vector<AttributeListGroup> status_templates() const;
 };
 
 /*

@@ -90,7 +90,13 @@ int main() {
 
 /* 
 
+QUESTIONS:
+-Bad to have all my stuff clumped in this one file??
+-breaking conditions?
+-How to best do statuses? By Enum? Or by classes?
+
 IDEAS:
 -Ability based on turn bar, status effects
+
 
 */

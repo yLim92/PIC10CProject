@@ -1,6 +1,7 @@
 #ifndef UTILITY_H
 #define UTILITY_H
 
+#include <iostream>
 #include <utility>
 #include <string>
 #include "windows.h"
@@ -10,9 +11,16 @@
 #include <map>
 
 #define DEBUG_FLOOR 0
-#define DEBUG_BATTLE 0
+#define DEBUG_BATTLE 1
 #define DEBUG_TARGET_LOGIC 0
 #define DEBUG_STATUS 0
+
+using std::cout;
+using std::endl;
+using std::vector;
+using std::string;
+using std::map;
+using std::pair;
 
 //Game constants
 namespace gc {
@@ -55,12 +63,14 @@ namespace gc {
 		burn,
 		bleed,
 		poison,
+		temp_hp_up,
 		regen_temp_hp,
 		regen_resource,
-		counter,
 		armor_pierce,
 		challenged,
 		threat_level,
+		ability_status_on_hit,
+		ability_status_on_dmg,
 		undefined
 	};
 	enum class ComboPointType {
@@ -92,6 +102,7 @@ namespace utility {
 	int get_user_input(int l, int h);
 	int get_user_input(int h, std::vector<int> &ignore);
 	int get_user_input(int l, int h, std::vector<int> &ignore);
+	std::string base_32_hex();
 
 	typedef std::pair<int, int> coordinates;
 }
