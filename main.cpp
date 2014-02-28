@@ -1,7 +1,9 @@
 /*
 Yongjie Lim
 UID: 703912832
-Week 4 Submission
+Week 5 Submission
+
+*** IF BY SOME CHANCE ONE OF THE 19 FILES IS MISSING, CAN BE DOWNLOADED FROM THE REPOSITORY ON GIT:  https://github.com/yLim92/PIC10CProject IF IT'S NOT UPDATED, IT'S MY FAULT ***
 
 DIRECTIONS:
 -PLEASE manually expand the console height for the map.  Otherwise the output might look REALLY strange.
@@ -16,6 +18,14 @@ Battling the linked statuses again.  Ridiculously tricky because:
 	-Need to have a linked logic that is determined by the ability
 	-Statuses must be dynamically created
 	-Statuses have different targets and accuracies 
+Other than that, completed most of the abilities of the Soldier and Mage class.  Based on time constraints, I will delay doing the rogue class for now,
+and move on to creating enemies.
+Introduced the concept of sustained abilities: abilities that last for as long as a condition is held.  In the mage case, Enfeeble and Defile require a resource cost every second. If the cost
+cannot be paid, all sustained abilities disappear.
+
+NEXT WEEK:
+-Create a few enemies
+-Begin populating the floor with events!!
 
 WEEK 4
 I realized that linked status might be more complex than one to one; that took a bit of time to resolve for the potential many-to-many relationships
@@ -79,7 +89,30 @@ void set_window_size(int w, int h)
 }
 
 
-int main() {
+int main() {/*
+	vector<int> tf;
+	int sz = 12;
+	for (int q = 0; q < 10000; ++q) {
+		vector<int> nums;
+		for (int i = 0; i < sz; ++i){
+			nums.push_back(utility::rng(100));
+		}
+		for (int i = 0; i < sz - 1; ++i){
+			bool found = false;
+			for (int j = i+1; j < sz; ++j){
+				if (nums[i] == nums[j]){
+					tf.push_back(1);
+					found = true;
+					break;
+				}
+			}
+			if (found)
+				break;
+		}
+	}
+	cout << "FOUND: " << tf.size() << endl;
+	*/
+
 	set_window_size(100, 70);
 
 	Game g = Game();

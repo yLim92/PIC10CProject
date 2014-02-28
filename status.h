@@ -114,5 +114,90 @@ struct LinkedStatus {
 	gc::StatusType type;
 };
 
+class EquipmentList {
+public:
+	EquipmentList() {}
+	EquipmentList(GameUnit *gu) : owner(gu) {}
+	virtual ~EquipmentList() {}
+
+private:
+	GameUnit *owner;
+	
+};
+
+
+class Equipment {
+public:
+	Equipment() {}
+	Equipment(int ilvl, int rare_bonus);
+	virtual ~Equipment() {}
+
+	int generate_mod(gc::EquipMod eqmod);
+	virtual const int base_ability_mod() const { return item_level + 4; }
+	virtual const int base_accuracy_mod() const { return (item_level + 9)/2; }
+	virtual  int base_armor_mod() const { return item_level * 5; }
+	virtual const int base_armor_pierce_mod() const { return 1 + (item_level)/5; }
+	virtual const int base_stat_mod() const { return item_level * 2; }
+	virtual const int base_crit_chance_mod() const { return 1 + item_level/10; }
+	virtual const int base_crit_damage_mod() const { return 50 + (item_level-1)*3; }
+	virtual const int base_damage_reduct_mod() const { return 1 + (item_level)/5; }
+	virtual const int base_dodge_mod() const { return (item_level + 9)/2; }
+	virtual const int base_effect_chance_mod() const { return 1 + (item_level * 2) / 5; }
+	virtual const int base_effect_resist_mod() const { return 1 + (item_level * 2) / 5; }
+	virtual const int base_experience_mod() const { return 1 + (item_level) / 5; }
+	virtual const int base_gold_mod() const { return 1 + (item_level) / 10; }
+	virtual const int base_initial_turn_mod() const { return 10 + item_level; }
+	virtual const int base_max_hp_mod() const { return 10 * item_level; }
+	virtual const int base_rare_item_mod() const { return 5 * item_level; }
+	virtual const int base_regen_resource_mod() const { return 5 + item_level - 1; }
+	virtual const int base_hp_regen_mod() const { return 1 + item_level/5; }
+	virtual const int base_shield_mod() const { return 20 + item_level * 4; }
+	virtual const int base_speed_mod() const { return 5 + item_level - 1; }
+	virtual const int base_vampirism_mod() const { return 1 + item_level/2; }
+
+protected:
+	int item_level,
+		gold_value;
+
+	gc::EquipRarity rarity;
+	string name;
+
+};
+
+class MainHandEquip : public Equipment {
+public:
+	MainHandEquip() {}
+	virtual ~MainHandEquip() {}
+
+
+private:
+
+};
+class BodyEquip : public Equipment {
+public:
+	BodyEquip() {}
+	virtual ~BodyEquip() {}
+
+private:
+
+};
+class HelmetEquip : public Equipment {
+public:
+	HelmetEquip() {}
+	virtual ~HelmetEquip() {}
+
+
+private:
+
+};
+class BootsEquip : public Equipment {
+public:
+	BootsEquip() {}
+	virtual ~BootsEquip() {}
+
+private:
+
+};
+
 
 #endif //STATUS_H

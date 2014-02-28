@@ -215,3 +215,36 @@ void Status::link_status(Status* ls){
 	this->linked_statuses.push_back(LinkedStatus(*ls->status_list, ls->key, ls->get_type()));
 	ls->linked_statuses.push_back(LinkedStatus(*this->status_list, this->key, this->get_type()));
 }
+
+Equipment::Equipment(int ilvl, int rare_bonus) : item_level(ilvl) {
+	int rarity_roll = utility::rng(1000 - rare_bonus);
+	if (rarity_roll <= 10)
+		rarity = gc::EquipRarity::epic;
+	else if (rarity_roll <= 100)
+		rarity = gc::EquipRarity::unique;
+	else if (rarity_roll <= 250)
+		rarity = gc::EquipRarity::rare;
+	else
+		rarity = gc::EquipRarity::common;
+}
+
+int Equipment::generate_mod(gc::EquipMod eqmod) {
+	int total_mod = 0;
+	double base_mult = 1.0;
+	if (rarity == gc::EquipRarity::rare)
+		base_mult = 1.1;
+	else if (rarity == gc::EquipRarity::unique)
+		base_mult = 1.3;
+	else if (rarity == gc::EquipRarity::epic)
+		base_mult = 1.5;
+
+	int base = 0;
+	if (eqmod == gc::EquipMod::ability)
+		base = int( 
+		(item_level + 4) * base_mult);
+	else if (eqmod == gc::EquipMod::accuracy){
+		int base = int( (item_level + 4) * base_mult);
+	}
+	total_mod = utility::rng(int(base * 0.8), int(base * 1.2) );
+	return 0;
+}

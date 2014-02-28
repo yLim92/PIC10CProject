@@ -47,6 +47,7 @@ public:
 	const std::vector< Room*> get_rooms() const;
 	const Room&get_current_room() const { return *current_room; };
 	const int get_room_color(Room* r) const;
+	const Room& get_starting_room() const { return *starting_room; }
 	void set_current_room(Room *r); 
 
 	~Floor() {}

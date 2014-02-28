@@ -73,6 +73,38 @@ namespace gc {
 		ability_status_on_dmg,
 		undefined
 	};
+	enum class EquipMod {
+		ability,
+		strength,
+		intelligence,
+		dexterity,
+		constitution,
+		armor,
+		damage_reduction,
+		effect_chance,
+		critical_chance,
+		critical_damage,
+		dodge,
+		effect_resist,
+		speed,
+		accuracy,
+		shield,
+		max_hp,
+		regen_hp,
+		armor_pierce,
+		vampirism,
+		initial_turn,
+		experience,
+		gold,
+		rare_item,
+		regen_resource,
+	};
+	enum class EquipRarity {
+		common,
+		rare,
+		unique,
+		epic
+	};
 	enum class ComboPointType {
 		attack,
 		dodge,

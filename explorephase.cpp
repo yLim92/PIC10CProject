@@ -16,7 +16,7 @@ ExplorePhase::ExplorePhase(Difficulty d, Party *p) : difficulty(d), party(p) {
 }
 
 void ExplorePhase:: explore() {
-	while (event_list.do_room_event(current_floor->current_room->get_coordinates()) != gc::RoomCode::boss_success) {
+	while (event_list.do_room_event(current_floor->current_room->get_coordinates(), party) != gc::RoomCode::boss_success) {
 		post_event_phase();
 	}
 }
@@ -25,7 +25,7 @@ void ExplorePhase::add_new_floor() {
 	Floor *f = new Floor(8, 8, 0.6);
 	floors.push_back(f);
 	current_floor = f;
-	event_list.populate_event_table(f, party);
+	event_list.populate_event_table(f);
 }
 
 void ExplorePhase::post_event_phase() {

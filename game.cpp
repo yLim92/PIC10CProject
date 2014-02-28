@@ -38,7 +38,8 @@ void Game::new_game() {
 	std::vector<GameUnit*> players;
 	players.push_back(new Soldier("Fred", 10));
 	players.push_back(new Mage("Jim", 10));
-	players.push_back(new Thief("Jorge",10));
+	players.push_back(new Soldier("Newbie", 1));
+	players.push_back(new Mage("NewbieJr", 1));
 	Party *party = new Party(players, gc::Affiliation::player);
 
 	explorePhase = new ExplorePhase(difficulty, party);
