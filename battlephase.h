@@ -1,6 +1,8 @@
 #ifndef BATTLEPHASE_H
 #define BATTLEPHASE_H
 
+/* ISSUE: NEEDS TO END BATTLE IF ENEMY DIES THE SAME TIME A PLAYER TAKES TURN */
+
 #include <vector>
 #include <map>
 #include "utility.h" //affiliation

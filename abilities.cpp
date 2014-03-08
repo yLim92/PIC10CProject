@@ -64,6 +64,23 @@ const int Ability::mod_only_magnitude() const{
 		get_owner().get_dexterity()*dex_effect_mod +
 		get_owner().get_intelligence()*int_effect_mod)*( 1 + get_owner().get_status_mod(gc::StatusType::ability)));
 }
+// SHOULD BE EVENTUALLY REPLACE WITH ONE FUNCTION THAT TAKES THE STAT TYPE AS A PARAMETER
+const int Ability::con_only_magnitude() const{
+	return int(
+		(get_owner().get_constitution()*con_effect_mod)*( 1 + get_owner().get_status_mod(gc::StatusType::ability)));
+}
+const int Ability::str_only_magnitude() const{
+	return int(
+		(get_owner().get_strength()*str_effect_mod)*( 1 + get_owner().get_status_mod(gc::StatusType::ability)));
+}
+const int Ability::int_only_magnitude() const{
+	return int(
+		(get_owner().get_intelligence()*int_effect_mod)*( 1 + get_owner().get_status_mod(gc::StatusType::ability)));
+}
+const int Ability::dex_only_magnitude() const{
+	return int(
+		(get_owner().get_dexterity()*dex_effect_mod)*( 1 + get_owner().get_status_mod(gc::StatusType::ability)));
+}
 const double Ability::effect_spread(bool perfect) const{
 	if (perfect)
 		return (1.2 * base_up_bound)/100.;
@@ -137,7 +154,7 @@ void Ability::set_possible_targets(std::vector<GameUnit*> &combatants, std::vect
 			if (  ((afl == Affiliation::player || afl == Affiliation::ally) && (c_afl == Affiliation::player || c_afl == Affiliation::ally)) || (afl == c_afl) )
 				possible_tgts.push_back(combatants[i]);
 		}
-		else if (get_target_type() == gc::TargetType::single_enemy) {
+		else if (get_target_type() == gc::TargetType::single_enemy || get_target_type() == gc::TargetType::party_enemy) {
 			if (  !((afl == Affiliation::player || afl == Affiliation::ally) && (c_afl == Affiliation::player || c_afl == Affiliation::ally)) && !(afl == c_afl) ){
 				possible_tgts.push_back(combatants[i]);
 			}
@@ -188,7 +205,10 @@ bool Ability::select_targets(std::vector<GameUnit*> &poss_tgts, std::vector<Game
 		}
 	}
 	else{
-		get_owner().apply_targetting_logic(poss_tgts, targets, 1, get_target_type());
+		if (get_target_type() == gc::TargetType::single_enemy)
+			get_owner().apply_targetting_logic(poss_tgts, targets, 1, get_target_type());
+		else if (get_target_type() == gc::TargetType::party_enemy || get_target_type() == gc::TargetType::party_friendly)
+			targets = poss_tgts;
 		return true;
 	}
 }
@@ -490,6 +510,18 @@ const std::string RogueAbility::get_cost_display() const{
 void RogueAbility::deduct_ability_cost() {
 	rogue->change_combo_points(combo_point_change);
 }
+NpcAbility::NpcAbility(Npc* o) {
+	set_defaults();
+
+	npc = o;
+}
+
+const GameUnit& NpcAbility::get_owner() const{
+	return *npc;
+}
+GameUnit& NpcAbility::get_owner() {
+	return *npc;
+}
 
 MoraleBoost::MoraleBoost(Soldier *o) : WarriorAbility(o) {
 	damaging =		false;
@@ -790,14 +822,14 @@ const std::vector<AttributeListGroup> Fireball::status_templates() const{
 }
 
 Meteor::Meteor(Mage *o) : MageAbility(o) {
-	delay = 4 * gc::FPS;
+	delay = 3 * gc::FPS;
 
 	int_effect_mod = 4;
 
 	base_accuracy = 80;
 	base_low_bound = 50;
 
-	base_mp_cost = 50;
+	base_mp_cost = 45;
 
 	name = "Meteor";
 	initial_desc = get_owner().get_name() + " begins channelling...";
@@ -839,7 +871,7 @@ LightningShield::LightningShield(Mage *o) : MageAbility(o) {
 	int_effect_mod = 1.0;
 	base_accuracy = 100;
 
-	base_mp_cost = 10;
+	base_mp_cost = 35;
 
 	name = "Lightning Array";
 	initial_desc = get_owner().get_name() + " creates a matrix of lightning around an ally!";
@@ -892,10 +924,10 @@ Barrier::Barrier(Mage *o) : MageAbility(o) {
 	status_effect = true;
 	target_type = gc::TargetType::single_friendly;
 
-	con_effect_mod = 1.5;
-	int_effect_mod = 2.5;
+	con_effect_mod = 1.0;
+	int_effect_mod = 2.0;
 
-	base_mp_cost = 10;
+	base_mp_cost = 25;
 
 	name = "Barrier";
 	initial_desc = get_owner().get_name() + " shields an ally!";
@@ -927,7 +959,7 @@ Enfeeble::Enfeeble(Mage* o) : MageAbility(o) {
 
 	base_accuracy = 100;
 
-	base_mp_cost = 10;
+	base_mp_cost = 20;
 
 	name = "Enfeeble";
 	initial_desc = get_owner().get_name() + " channels a weakening curse!";
@@ -1000,7 +1032,7 @@ Curse::Curse(Mage* o) : MageAbility(o) {
 
 	base_accuracy = 100;
 
-	base_mp_cost = 10;
+	base_mp_cost = 15;
 
 	name = "Defile";
 	initial_desc = get_owner().get_name() + " poisons the enemy with shadow magic!";
@@ -1064,4 +1096,204 @@ Snipe::Snipe(Thief* o): RogueAbility(o) {
 
 	name = "Snipe";
 	initial_desc = get_owner().get_name() + " takes a careful shot at the enemy...";
+}
+
+ClawAttack::ClawAttack(Npc* o): NpcAbility(o) {
+	str_effect_mod = 1.0;
+
+	base_accuracy = 85;
+
+	initial_desc = "The " + get_owner().get_name() + " rends the target with its claws!";
+}
+
+RottingBreath::RottingBreath(Npc *o) : NpcAbility(o) {
+	delay = 3 * gc::FPS;
+	status_effect = true;
+	target_type = gc::TargetType::party_enemy;
+
+	int_effect_mod = 1.5;
+
+	base_accuracy = 95;
+	base_low_bound = 70;
+
+	initial_desc = "An aura of decay surrounds the " + get_owner().get_name() + " as it rears back its head!";
+	delayed_desc = "The " + get_owner().get_name() + " unleashes a wave of death and decay!";
+}
+
+const std::vector<AttributeListGroup> RottingBreath::status_templates() const {
+	std::vector<AttributeListGroup> v_algs;
+	AttributeListGroup alg = AttributeListGroup(50);
+	int key_index = 0;
+
+	AttributeList attr = AttributeList();
+	attr.type = gc::StatusType::poison;
+	attr.effect_magnitude = -0.5;
+	attr.duration = 10 * gc::FPS;
+	alg.add_attribute_list(attr, true, gc::PRACTICALLY_INFINITY, status_keys[key_index++]);
+
+	attr = AttributeList();
+	attr.type = gc::StatusType::ability;
+	attr.effect_magnitude = -0.2;
+	attr.duration = 10 * gc::FPS;
+	alg.add_attribute_list(attr, true, gc::PRACTICALLY_INFINITY, status_keys[key_index++]);
+
+	return v_algs;
+}
+
+Consume::Consume(Npc *o) : NpcAbility(o) {
+	status_effect = true;
+	target_type = gc::TargetType::single_enemy;
+
+	str_effect_mod = 1.5;
+	int_effect_mod = 0.5;
+
+	base_accuracy = 70;
+	base_low_bound = 70;
+
+	initial_desc = "The " + get_owner().get_name() + " attempts to engulf its target!";
+}
+
+const std::vector<AttributeListGroup> Consume::status_templates() const {
+	std::vector<AttributeListGroup> v_algs;
+	AttributeListGroup alg = AttributeListGroup(gc::PRACTICALLY_INFINITY);
+	int key_index = 0;
+
+	AttributeList attr = AttributeList();
+	attr.type = gc::StatusType::grab;
+	attr.duration = 1 * gc::FPS;
+	attr.sustain_chance = 1.0;
+	attr.sustain_chance_decay = 0.05;
+	alg.add_attribute_list(attr, false, gc::PRACTICALLY_INFINITY, status_keys[key_index++]);
+
+	attr = AttributeList();
+	attr.type = gc::StatusType::poison;
+	attr.duration = gc::PRACTICALLY_INFINITY;
+	attr.effect_magnitude = 0.5 * int_only_magnitude();
+	attr.effect_decay = -0.05;
+	alg.add_attribute_list(attr, false, gc::PRACTICALLY_INFINITY, status_keys[key_index++]);
+
+	std::vector<std::pair<int, int >> ll;
+	link_all(ll, key_index);
+	alg.set_link_logic(ll);
+
+	v_algs.push_back(alg);
+
+	return v_algs;
+}
+
+DecayCurse::DecayCurse(Npc *o) : NpcAbility(o) {
+	health_effect = false;
+	status_effect = true;
+	target_type = gc::TargetType::single_enemy;
+
+	int_effect_mod = 1;
+
+	base_accuracy = 95;
+
+	initial_desc = "The " + get_owner().get_name() + " casts an aging curse on its target!";
+}
+
+const std::vector<AttributeListGroup> DecayCurse::status_templates() const {
+	std::vector<AttributeListGroup> v_algs;
+	AttributeListGroup alg = AttributeListGroup(gc::PRACTICALLY_INFINITY);
+	int key_index = 0;
+
+	AttributeList attr = AttributeList();
+	attr.type = gc::StatusType::speed;
+	attr.effect_magnitude = -0.4;
+	attr.duration = 15 * gc::FPS;
+	alg.add_attribute_list(attr, false, gc::PRACTICALLY_INFINITY, status_keys[key_index++]);
+
+	attr = AttributeList();
+	attr.type = gc::StatusType::dodge;
+	attr.effect_magnitude = -0.4;
+	attr.duration = 15 * gc::FPS;
+	alg.add_attribute_list(attr, false, gc::PRACTICALLY_INFINITY, status_keys[key_index++]);
+
+	attr = AttributeList();
+	attr.type = gc::StatusType::effect_chance;
+	attr.effect_magnitude = -0.4;
+	attr.duration = 15 * gc::FPS;
+	alg.add_attribute_list(attr, false, gc::PRACTICALLY_INFINITY, status_keys[key_index++]);
+
+	v_algs.push_back(alg);
+
+	return v_algs;
+}
+
+MagicBolt::MagicBolt(Npc *o) : NpcAbility(o) {
+	status_effect = true;
+	target_type = gc::TargetType::single_enemy;
+
+	int_effect_mod = 0.8;
+
+	base_accuracy = 90;
+
+	initial_desc = "The " + get_owner().get_name() + " fires a bolt of energy!";
+}
+
+const std::vector<AttributeListGroup> MagicBolt::status_templates() const {
+	std::vector<AttributeListGroup> v_algs;
+	AttributeListGroup alg = AttributeListGroup(30);
+	int key_index = 0;
+
+	AttributeList attr = AttributeList();
+	attr.type = gc::StatusType::damage_reduction;
+	attr.effect_magnitude = -0.2;
+	attr.duration = 10 * gc::FPS;
+	alg.add_attribute_list(attr, false, gc::PRACTICALLY_INFINITY, status_keys[key_index++]);
+
+	v_algs.push_back(alg);
+
+	return v_algs;
+}
+
+
+Frenzy::Frenzy(Npc *o) : NpcAbility(o) {
+	status_effect = true;
+	target_type = gc::TargetType::single_enemy;
+
+	int_effect_mod = 0.8;
+
+	base_accuracy = 90;
+
+	initial_desc = "The " + get_owner().get_name() + " drives an ally into an unholy frenzy!";
+}
+void Frenzy::set_possible_targets(std::vector<GameUnit*> &combatants, std::vector<GameUnit *> &possible_tgts){
+	gc::Affiliation afl = get_owner().get_affiliation();
+	for (size_t i = 0; i < combatants.size(); ++i){
+		if (combatants[i]->is_defeated())
+			continue;
+		gc::Affiliation c_afl = combatants[i]->get_affiliation();
+		if (afl == c_afl && combatants[i]->get_id_key() != get_owner().get_id_key()){
+			possible_tgts.push_back(combatants[i]);
+		}
+	}
+}
+const std::vector<AttributeListGroup> Frenzy::status_templates() const {
+	std::vector<AttributeListGroup> v_algs;
+	AttributeListGroup alg = AttributeListGroup(gc::PRACTICALLY_INFINITY);
+	int key_index = 0;
+
+	AttributeList attr = AttributeList();
+	attr.type = gc::StatusType::speed;
+	attr.effect_magnitude = 1.0;
+	attr.duration = 15 * gc::FPS;
+	alg.add_attribute_list(attr, false, gc::PRACTICALLY_INFINITY, status_keys[key_index++]);
+
+	attr = AttributeList();
+	attr.type = gc::StatusType::ability;
+	attr.effect_magnitude = 0.5;
+	attr.duration = 15 * gc::FPS;
+	alg.add_attribute_list(attr, false, gc::PRACTICALLY_INFINITY, status_keys[key_index++]);
+
+	attr = AttributeList();
+	attr.type = gc::StatusType::accuracy;
+	attr.effect_magnitude = 0.2;
+	attr.duration = 15 * gc::FPS;
+	alg.add_attribute_list(attr, false, gc::PRACTICALLY_INFINITY, status_keys[key_index++]);
+
+	v_algs.push_back(alg);
+
+	return v_algs;
 }

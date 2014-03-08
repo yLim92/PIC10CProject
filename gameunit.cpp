@@ -63,6 +63,14 @@ GameUnit::GameUnit(std::string n, int lvl) {
 	assign_abilities();
 }
 
+GameUnit::GameUnit( int lvl) {
+	initialize_stats();
+	level = lvl;
+
+	temp_hp = get_intial_temp_hp();
+	assign_abilities();
+}
+
 GameUnit::~GameUnit() {
 
 }
@@ -440,7 +448,7 @@ Mage::Mage(std::string n, int lvl) : PlayerUnit(n, lvl) {
 
 	is_front = false;
 
-	base_mp_regen = 5.0/gc::FPS;
+	base_mp_regen = 7.0/gc::FPS;
 	current_mp = 0; 
 	
 	temp_hp = get_intial_temp_hp();
@@ -535,13 +543,21 @@ const std::string Thief::get_resource_display() const {
 
 Npc::Npc(std::string n, int lvl) : GameUnit(n, lvl) {
 }
+Npc::Npc(int lvl) : GameUnit(lvl) {
+}
 
 Npc::~Npc() {
 	
 }
 void Npc::do_turn(vector<GameUnit*> &combatants, BattleView &bv) {
 	bv.print_battle_view();
-	get_ability(utility::rng(get_abilities().size()) - 1)->do_ability_phase(combatants, bv);
+
+	int select = utility::rng(get_ability_count()) - 1;
+	while (!get_ability(select)->is_usable()){
+		select = utility::rng(get_ability_count()) - 1;
+	}
+
+	get_ability(select)->do_ability_phase(combatants, bv);
 	reset_turn_progress();
 }
 void Npc::apply_targetting_logic(std::vector<GameUnit *> &poss_tgts, std::vector<GameUnit *> &tgts, int max_tgts, gc::TargetType tt){
@@ -610,4 +626,73 @@ const bool Npc::has_personality(gameunit_misc::Personality p) const{
 			return true;
 	}
 	return false;
+}
+Ability* Npc::get_ability(int i){
+	if (i >= int(npc_abilities.size()))
+		return nullptr;
+	else
+		return npc_abilities[i]; 
+}
+
+DracoZombie::DracoZombie(int lvl) : Npc(lvl) {
+	name = "Draco-Zombie";
+	base_con = 40;
+	base_str = 35;
+	base_dex = 5;
+	base_int = 30;
+	con_per_lvl = 4;
+	str_per_lvl = 3.5;
+	dex_per_lvl = 0.5;
+	int_per_lvl = 3.0;
+
+	assign_abilities();
+}
+void DracoZombie::assign_abilities() {
+	npc_abilities.push_back(new ClawAttack(this));
+	npc_abilities.push_back(new ClawAttack(this));
+	npc_abilities.push_back(new ClawAttack(this));
+	npc_abilities.push_back(new RottingBreath(this));
+	npc_abilities.push_back(new Consume(this));
+	npc_abilities.push_back(new DecayCurse(this));
+}
+
+Fallen::Fallen(int lvl) : Npc(lvl) {
+	name = "Hollow";
+	base_con = 10;
+	base_str = 10;
+	base_dex = 3;
+	base_int = 1;
+	con_per_lvl = 1.0;
+	str_per_lvl = 1.0;
+	dex_per_lvl = 0.3;
+	int_per_lvl = 0.1;
+
+	base_turn_cycle = 70;
+
+	assign_abilities();
+}
+
+void Fallen::assign_abilities() {
+	npc_abilities.push_back(new ClawAttack(this));
+}
+
+Cultist::Cultist(int lvl) : Npc(lvl) {
+	name = "Cultist";
+	base_con = 5;
+	base_str = 5;
+	base_dex = 5;
+	base_int = 10;
+	con_per_lvl = 0.5;
+	str_per_lvl = 0.5;
+	dex_per_lvl = 0.5;
+	int_per_lvl = 1.0;
+
+	personalities.push_back(gameunit_misc::Personality::intelligent);
+
+	assign_abilities();
+}
+
+void Cultist::assign_abilities() {
+	npc_abilities.push_back(new MagicBolt(this));
+	npc_abilities.push_back(new Frenzy(this));
 }

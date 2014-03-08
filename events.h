@@ -18,7 +18,7 @@ public:
 	void set_possible_events();
 private:
 	std::map<utility::coordinates, Event*> event_table;
-	vector<Event> possible_events;
+	vector<Event*> possible_events;
 
 	enum events{
 		battle_event,
@@ -45,6 +45,14 @@ public:
 
 	virtual gc::RoomCode do_event(Party *p);
 
+};
+
+class DracoZombieSummoningEvent : public Event {
+public:
+	DracoZombieSummoningEvent() : Event() {}
+	virtual ~DracoZombieSummoningEvent() {}
+
+	virtual gc::RoomCode do_event(Party *p);
 };
 
 class MoneyEventA: public Event {

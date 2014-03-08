@@ -12,6 +12,7 @@ class Party;
 class Turn;
 class BattleView;
 struct DelayedAbility;
+class NpcAbility;
 
 namespace gameunit_misc {
 	bool sort_by_speed (const GameUnit *lhs, const GameUnit *rhs);
@@ -32,6 +33,7 @@ public:
 	GameUnit(int c, int s, int d, int i); 
 	GameUnit(std::string n, int c, int s, int d, int i);
 	GameUnit(std::string n, int lvl);
+	GameUnit(int lvl);
 	virtual ~GameUnit();
 
 	virtual void initialize_stats();
@@ -41,6 +43,7 @@ public:
 	const std::string get_name() const { return name; }
 	const std::string get_id_key() const { return id; }
 	const std::vector<Ability *>& get_abilities() const { return abilities; }
+	virtual const int get_ability_count() const { return abilities.size(); }
 	const int get_constitution() const;
 	const int get_strength() const;
 	const int get_dexterity() const;
@@ -223,11 +226,49 @@ public:
 	Npc(int c, int s, int d, int i) : GameUnit(c, s, d, i) {}
 	Npc(std::string n, int c, int s, int d, int i) : GameUnit(n, c, s, d, i) {}
 	Npc(std::string n, int lvl);
+	Npc(int lvl);
 	virtual ~Npc();
 
+	virtual Ability* get_ability(int i);
+	virtual const int get_ability_count() const { return npc_abilities.size(); }
 	virtual void apply_targetting_logic(std::vector<GameUnit *> &poss_tgts, std::vector<GameUnit *> &tgts, int max_tgts, gc::TargetType tt);
 	const bool has_personality(gameunit_misc::Personality p) const;
 	virtual void do_turn(vector<GameUnit*> &combatants, BattleView &bv);
 protected:
 	std::vector<gameunit_misc::Personality> personalities;
+	std::vector<NpcAbility*> npc_abilities;
+};
+
+class DracoZombie : public Npc {
+public:
+	DracoZombie() {}
+	DracoZombie(int lvl); 
+	virtual ~DracoZombie() {}
+
+	virtual void assign_abilities();
+
+protected:
+	
+};
+
+class Fallen : public Npc {
+public:
+	Fallen() {}
+	Fallen(int lvl); 
+	virtual ~Fallen() {}
+
+	virtual void assign_abilities();
+
+protected:
+};
+
+class Cultist : public Npc {
+public:
+	Cultist() {}
+	Cultist(int lvl); 
+	virtual ~Cultist() {}
+
+	virtual void assign_abilities();
+
+protected:
 };

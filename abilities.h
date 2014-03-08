@@ -1,5 +1,6 @@
 /**
 Issue: What if ability is a charge ability and used more than once
+In the future, should try to namespace all the abilities
 **/
 
 #ifndef ABILITIES_H
@@ -19,6 +20,7 @@ class AttributeListGroup;
 class Soldier;
 class Mage;
 class Thief;
+class Npc;
 
 struct DelayedAbility {
 	DelayedAbility(Ability& a, int d, std::vector<GameUnit*> t) : ability(&a), delay(d), targets(t) {}
@@ -46,7 +48,7 @@ public:
 	virtual int do_ability_phase(std::vector<GameUnit*> &combatants, BattleView &bv);
 
 	bool target_step(std::vector<GameUnit*> &combatants, std::vector<GameUnit *> &targets);
-	void set_possible_targets(std::vector<GameUnit*> &combatants, std::vector<GameUnit *> &possible_tgts);
+	virtual void set_possible_targets(std::vector<GameUnit*> &combatants, std::vector<GameUnit *> &possible_tgts);
 	virtual bool select_targets(std::vector<GameUnit *> &poss_tgts, std::vector<GameUnit *> &targets);
 
 	virtual void deduct_ability_cost() {}
@@ -62,8 +64,12 @@ public:
 	
 	void do_delayed_ability(std::vector<GameUnit *> &targets, BattleView &bv);
 
-	const int effect_magnitude() const;
+	virtual const int effect_magnitude() const;
 	const int mod_only_magnitude() const;
+	const int con_only_magnitude() const;
+	const int str_only_magnitude() const;
+	const int int_only_magnitude() const;
+	const int dex_only_magnitude() const;
 	virtual const double effect_spread(bool perfect) const;
 	const int critical_chance() const;
 	const double critical_damage_multiplier() const;
@@ -185,6 +191,16 @@ public:
 protected:
 	gc::ComboPoints combo_point_change;
 	Thief *rogue;
+};
+
+class NpcAbility : public Ability {
+public: 
+	NpcAbility(Npc *o);
+	virtual const GameUnit& get_owner() const;
+	virtual GameUnit& get_owner();
+
+protected:
+	Npc *npc;
 };
 
 /*
@@ -347,6 +363,61 @@ public:
 	Snipe(Thief *o);
 	virtual ~Snipe() {}
 protected:
+};
+
+/*
+	DRACOZOMBIE ABILITIES
+*/
+
+class ClawAttack : public NpcAbility {
+public:
+	ClawAttack(Npc *o);
+	virtual ~ClawAttack() {}
+};
+
+class RottingBreath : public NpcAbility {
+public:
+	RottingBreath(Npc *o);
+	virtual ~RottingBreath() {}
+
+	virtual const std::vector<AttributeListGroup> status_templates() const;
+};
+
+class Consume : public NpcAbility {
+public:
+	Consume(Npc *o);
+	virtual ~Consume() {}
+
+	virtual const std::vector<AttributeListGroup> status_templates() const;
+
+	virtual const int effect_magnitude() const { return str_only_magnitude(); }
+};
+
+class DecayCurse : public NpcAbility {
+public:
+	DecayCurse(Npc *o);
+	virtual ~DecayCurse() {}
+
+	virtual const std::vector<AttributeListGroup> status_templates() const;
+};
+
+/* Cultist Abilities */
+
+class MagicBolt : public NpcAbility {
+public:
+	MagicBolt(Npc *o);
+	virtual ~MagicBolt() {}
+
+	virtual const std::vector<AttributeListGroup> status_templates() const;
+};
+
+class Frenzy : public NpcAbility {
+public:
+	Frenzy(Npc *o);
+	virtual ~Frenzy() {}
+
+	virtual void set_possible_targets(std::vector<GameUnit*> &combatants, std::vector<GameUnit *> &possible_tgts);
+	virtual const std::vector<AttributeListGroup> status_templates() const;
 };
 
 

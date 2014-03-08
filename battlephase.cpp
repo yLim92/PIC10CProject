@@ -36,6 +36,7 @@ BattlePhase::BattlePhase(Party* pp, Party* ep) : player_party(pp), enemy_party(e
 
 //Parties passed it must not have the same affiliation
 BattlePhase::BattlePhase(Party* pp, Party* ep, Party* ap, Party* np) : player_party(pp), enemy_party(ep), ally_party(ap), neutral_party(np) {
+	
 	if (player_party == nullptr)
 		player_party = new Party();
 	if (enemy_party == nullptr)
@@ -372,62 +373,3 @@ void BattleView::add_to_battle_log(const std::vector<std::pair<std::string, int>
 	battle_log.push_back(vp);
 	return;
 }
-
-//
-//Turn::Turn(BattlePhase *b, GameUnit *g) : bp(b), gu(g)  {
-//}
-//
-//int Turn::do_turn(BattleView &bv) {
-//	return 0;
-//}
-//
-//int PlayerTurn::do_turn(BattleView &bv) {
-//	bv.print_battle_view();
-//	std::cout << gu->get_name() << " Resource: " << gu->get_resource_display() << std::endl;	
-//	std::cout << "1. Abilities" << std::endl;
-//	
-//	int user_input = utility::get_user_input(1);
-//	if (user_input == 1){
-//		list_abilities(bv);
-//	}
-//	return 0;
-//}
-//
-//void PlayerTurn::list_abilities(BattleView &bv) {
-//	//std::vector<Ability*> abl = gu->get_abilities();
-//	std::vector<int> ignore;
-//
-//	int i = 0;
-//	while (gu->get_ability(i) != nullptr){
-//		view::Colors col = view::white;
-//		if (!gu->get_ability(i)->is_usable()){	
-//			col = view::gray;
-//			ignore.push_back(i+1);
-//		}
-//		view::cc(std::to_string(i+1) + ": " + gu->get_ability(i)->get_name(), col);
-//		std::cout << std::setw(25-gu->get_ability(i)->get_name().length()); 
-//		view::ccn(gu->get_ability(i)->get_cost_display(), col);
-//		++i;
-//	}
-//	int sz = i;
-//	view::ccn(std::to_string(sz+1) + ": Back", view::white);
-//	int user_input = utility::get_user_input(sz + 1, ignore);
-//	if (user_input <= sz){ 
-//		if (gu->get_ability(user_input - 1)->do_ability_phase(bp->get_combatants(), bp->get_battle_view())) {
-//			gu->reset_turn_progress();
-//			return;
-//		}
-//		else //Continue to list abilities if back was selected
-//			list_abilities(bv);
-//	}
-//	else
-//		do_turn(bv);
-//	return;
-//}
-//
-//int NpcTurn::do_turn(BattleView &bv) {
-//	bv.print_battle_view();
-//	gu->get_ability(utility::rng(gu->get_abilities().size()) - 1)->do_ability_phase(bp->get_combatants(), bp->get_battle_view());
-//	gu->reset_turn_progress();
-//	return 0;
-//}

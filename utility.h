@@ -11,7 +11,7 @@
 #include <map>
 
 #define DEBUG_FLOOR 0
-#define DEBUG_BATTLE 1
+#define DEBUG_BATTLE 0
 #define DEBUG_TARGET_LOGIC 0
 #define DEBUG_STATUS 0
 
@@ -115,6 +115,7 @@ namespace gc {
 	bool operator<(const ComboPoints& lhs, const ComboPoints& rhs);
 	ComboPoints operator-(const ComboPoints& rhs);
 
+	//Should be expanded to include party and self
 	enum class TargetType {
 		self,
 		single_friendly,

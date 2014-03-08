@@ -1,7 +1,7 @@
 /*
 Yongjie Lim
 UID: 703912832
-Week 5 Submission
+Week 6 Submission
 
 *** IF BY SOME CHANCE ONE OF THE 19 FILES IS MISSING, CAN BE DOWNLOADED FROM THE REPOSITORY ON GIT:  https://github.com/yLim92/PIC10CProject IF IT'S NOT UPDATED, IT'S MY FAULT ***
 
@@ -11,6 +11,19 @@ DIRECTIONS:
 -Game will start off with a battle; finish the battle and the game should enter exploration phase for the rest of the time.
 -Try out the floor navigation!
 -Please forgive the flickering.  I am aware console applications aren't ideal for games.
+
+WEEK 7
+BURNOUT!  I've lost steam; to be honest, I spent too much time on things like linked statuses when I should have focused on the core of the game. 
+Instead, for the last 2 weeks, I'm going to try to make one or two solid events that will hopefully demo what could have been.
+
+WEEK 6
+To be honest, not quite much was done this week; among being sick, work, and mainly TWITCHPLAYSPOKEMON.  Ideally, I will begin adding in floor events tomorrow and sunday; by the end of 10th week,
+I hope to have a somewhat functional floor to explore.  Some difficulties I've foreseen with events are that:
+	-they must again be uniquely created (and deleted when the floor is finished)
+	-they are all quite different.  I will probably be forced to hardcode in the events into a event list and then have those events randomly assigned.  There doesn't seem to be an elegant way to add them.
+
+NEXT WEEK:
+-Same as last week :(
 
 WEEK 5
 Battling the linked statuses again.  Ridiculously tricky because:
